@@ -19,6 +19,7 @@ import {
   resolveProfileId,
 } from '@/lib/reads'
 import { verifyTransaction } from '@/lib/verify'
+import { getPreferences } from '@/lib/preferences-server'
 import { parseVerifyQuery } from '@/lib/verify-query'
 import { shortAddress } from '@/lib/utils'
 
@@ -202,10 +203,13 @@ async function Result({ q }: { q: string }) {
       const a = await getAttestation(parsed.id)
       if (!a) return <Notice tone="bad">Attestation #{parsed.id.toString()} does not exist.</Notice>
       const [project, issuerHolds] = await Promise.all([getProject(BigInt(a.projectId)), isAgentIdHolder(a.issuer)])
+      const subject = await getProfile(BigInt(a.subjectProfileId))
+      const prefs = subject ? await getPreferences(subject.owner).catch(() => null) : null
+      const response = prefs?.acceptedAttestations.includes(a.id) ? 'accepted' : prefs?.declinedAttestations.includes(a.id) ? 'declined' : null
       return (
         <Section title={<>Attestation #{a.id}</>}>
           <ul>
-            <AttestationRow a={a} projectTitle={project?.meta.data?.title} />
+            <AttestationRow a={a} projectTitle={project?.meta.data?.title} response={response} />
           </ul>
           <div className="sp-panel p-4 text-[13px]">
             <dl className="grid grid-cols-[200px_1fr] gap-y-1.5">
@@ -215,6 +219,8 @@ async function Result({ q }: { q: string }) {
               <dd>Yes at signing (enforced by the contract) · now: {issuerHolds ? 'yes' : 'no'}</dd>
               <dt className="text-ink-3">Referenced project status</dt>
               <dd>{project?.status ?? 'unknown'}</dd>
+              <dt className="text-ink-3">Builder response</dt>
+              <dd>{response ? `${response} (owner-signed, off-chain)` : 'none'}</dd>
             </dl>
           </div>
           <Proves level="peer" />

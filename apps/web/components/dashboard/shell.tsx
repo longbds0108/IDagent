@@ -14,6 +14,7 @@ const tabs = [
   ['/dashboard/projects', '02', 'PROJECTS'],
   ['/dashboard/endorsements', '03', 'ENDORSEMENTS'],
   ['/dashboard/credentials', '04', 'CREDENTIALS'],
+  ['/dashboard/settings', '05', 'SETTINGS'],
 ] as const
 
 export function DashboardShell({ children }: { children: ReactNode }) {

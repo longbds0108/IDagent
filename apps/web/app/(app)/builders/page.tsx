@@ -5,6 +5,7 @@ import { Empty, PageHero } from '@/components/ui/card'
 import { buttonClass } from '@/components/ui/button'
 import { deployedContracts } from '@/lib/env'
 import { listBuilderSummaries } from '@/lib/reads'
+import { allPreferences } from '@/lib/preferences-server'
 
 export const metadata: Metadata = { title: 'Explore builders' }
 export const dynamic = 'force-dynamic'
@@ -28,7 +29,8 @@ export default async function Builders({ searchParams }: { searchParams: Promise
   let all: Awaited<ReturnType<typeof listBuilderSummaries>> = []
   let failed = false
   try {
-    all = await listBuilderSummaries()
+    const [summaries, prefs] = await Promise.all([listBuilderSummaries(), allPreferences()])
+    all = summaries.filter((s) => !prefs.get(s.profile.owner.toLowerCase())?.hideFromExplore)
   } catch {
     failed = true
   }

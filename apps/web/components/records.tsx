@@ -131,7 +131,17 @@ export function ProjectCard({
   )
 }
 
-export function AttestationRow({ a, projectTitle, actions }: { a: AttestationView; projectTitle?: string; actions?: ReactNode }) {
+export function AttestationRow({
+  a,
+  projectTitle,
+  actions,
+  response,
+}: {
+  a: AttestationView
+  projectTitle?: string
+  actions?: ReactNode
+  response?: 'accepted' | 'declined' | null
+}) {
   const c = deployedContracts()
   const who = a.issuerLabel ? `${a.issuerLabel}.ai` : a.issuerName ?? shortAddress(a.issuer)
   return (
@@ -139,6 +149,15 @@ export function AttestationRow({ a, projectTitle, actions }: { a: AttestationVie
       <div className="flex flex-wrap items-center gap-2">
         <TrustBadge level="peer" />
         <StatusPill status={a.revoked ? 'revoked' : 'active'} />
+        {response === 'accepted' ? (
+          <span className="border border-ok/40 px-1.5 py-[3px] font-mono text-[10px] uppercase tracking-[0.05em] text-ok" title="The builder signed an acknowledgement of this attestation">
+            Acknowledged by builder
+          </span>
+        ) : response === 'declined' ? (
+          <span className="border border-warn/40 px-1.5 py-[3px] font-mono text-[10px] uppercase tracking-[0.05em] text-warn" title="The builder declined this attestation; it remains on-chain">
+            Declined by builder
+          </span>
+        ) : null}
         <span className="font-mono text-[13px] font-medium text-peer">{a.skill}</span>
         <span className="text-[12px] text-ink-3">
           on <a className="underline" href={`/p/${a.subjectProfileId}#project-${a.projectId}`}>{projectTitle ?? `project #${a.projectId}`}</a>

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { explorerAddressUrl } from '@skillproof/shared'
@@ -12,6 +13,7 @@ import { SectionHead } from '@/components/section-head'
 import { Empty, StatStrip } from '@/components/ui/card'
 import { deployedContracts, publicEnv } from '@/lib/env'
 import { getAttestationsReceived, getCredentialsOf, getProfile, getProjectsOf, resolveProfileId } from '@/lib/reads'
+import { getPreferences } from '@/lib/preferences-server'
 import { formatDate, shortAddress } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -27,7 +29,8 @@ const load = cache(async (param: string) => {
     getCredentialsOf(id),
   ])
   if (!profile) return null
-  return { profile, projects, attestations, credentials }
+  const prefs = await getPreferences(profile.owner).catch(() => null)
+  return { profile, projects, attestations, credentials, prefs }
 })
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -53,7 +56,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   const { id } = await params
   const d = await load(id)
   if (!d) notFound()
-  const { profile: p, projects, attestations, credentials } = d
+  const { profile: p, projects, credentials, prefs } = d
+  const declined = new Set(prefs?.declinedAttestations ?? [])
+  const accepted = new Set(prefs?.acceptedAttestations ?? [])
+  const attestations = d.attestations.filter((a) => !declined.has(a.id))
+  const declinedCount = d.attestations.length - attestations.length
   const m = p.meta.data
   const c = deployedContracts()!
   const name = m?.displayName ?? (p.agentLabel ? `${p.agentLabel}.ai` : `Builder #${p.id}`)
@@ -76,7 +83,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
             {p.agentLabel ? ` · ${p.agentLabel.toUpperCase()}.AI` : ''} · v{p.version}
           </p>
           <div className="mt-6 flex items-end gap-5">
-            <Avatar url={m?.avatarUrl} seed={p.owner} size={84} />
+            <Avatar url={prefs?.hideAvatar ? undefined : m?.avatarUrl} seed={p.owner} size={84} />
             <h1 className="sp-display min-w-0 break-words text-[clamp(2.8rem,7vw,6.4rem)]">{name}</h1>
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-3 font-mono text-[12px]">
@@ -98,7 +105,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
               <MetaStatusNote status={p.meta.status} />
             </div>
           ) : null}
-          {m && Object.values(m.links).some(Boolean) ? (
+          {m && !prefs?.hideSocialLinks && Object.values(m.links).some(Boolean) ? (
             <div className="mt-5 flex flex-wrap gap-5">
               {Object.entries(m.links).map(([k, v]) =>
                 v ? (
@@ -200,13 +207,30 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
       </section>
 
       <section className="mt-16 space-y-4">
-        <SectionHead kicker="// 02 · PEER ATTESTED" title="Peer attestations" note="Signed statements by other Agent ID holders. Revoked ones stay visible." />
+        <SectionHead
+          kicker="// 02 · PEER ATTESTED"
+          title="Peer attestations"
+          note="Signed statements by other Agent ID holders. Revoked ones stay visible."
+          action={
+            prefs?.reputationOptIn ? (
+              <Link href={`/reputation?profile=${p.id}`} className="font-mono text-[10.5px] uppercase tracking-[0.04em] text-peer underline underline-offset-4">
+                Reputation ↗
+              </Link>
+            ) : null
+          }
+        />
         <ul className="space-y-3">
           {attestations.length === 0 ? <Empty>No peer attestations yet.</Empty> : null}
           {[...attestations].reverse().map((a) => (
-            <AttestationRow key={a.id} a={a} projectTitle={projectTitle.get(a.projectId)} />
+            <AttestationRow key={a.id} a={a} projectTitle={projectTitle.get(a.projectId)} response={accepted.has(a.id) ? 'accepted' : null} />
           ))}
         </ul>
+        {declinedCount ? (
+          <p className="sp-label !normal-case !tracking-normal">
+            {declinedCount} attestation{declinedCount === 1 ? '' : 's'} declined by the builder {declinedCount === 1 ? 'is' : 'are'} not shown here. They stay
+            on-chain and visible in the <Link className="underline" href={`/activity?q=profile:${p.id}`}>Activity feed</Link> and Verification Center.
+          </p>
+        ) : null}
       </section>
 
       <section className="mt-16 space-y-4">

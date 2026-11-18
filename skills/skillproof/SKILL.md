@@ -14,8 +14,11 @@ transaction through the official Agentic Wallet flow.
 - Only use the contract addresses returned by the SkillProof API and listed below. Never invent addresses.
 - Always run `preview` first, show the user the preview (target contract, 0 BNB value, action), and only run
   `execute` after the user agrees. The Binance App may ask for a further confirmation.
-- Requires Developer Mode, which only the user can enable in the Binance App. Check with `baw wallet settings --json`
-  (`devMode.enabled`).
+- Requires Developer Mode, which only the user can enable in the Binance App (Agentic Wallet → Settings). Check with
+  `baw wallet settings --json` (`devMode.enabled`, `devMode.expiresAt`). It lapses after 7 days without use, and enabling is
+  refused while the wallet balance is above the Developer Mode balance cap (351804).
+- The sender must be the user's Agentic Wallet, which holds the Agent ID. Get it with `baw wallet address --json`
+  (the entry with `binanceChainId` "56"). Keep a little BNB there for gas (`baw wallet balance --symbol BNB --binanceChainId 56 --json`).
 - Never ask for or handle seed phrases, private keys, QR codes or pairing codes.
 - Metadata is public. Do not include e-mail addresses or private details.
 
@@ -41,8 +44,24 @@ transaction through the official Agentic Wallet flow.
 3. **Dry-run**: `POST $APP/api/simulate` with `{"from":"$ME","call":{...action}}` → `{ ok, feeBnb }` or `{ ok:false, error }`.
    Stop and tell the user if `ok` is false.
 4. **Get the command**: `POST $APP/api/calldata` with the same body → `baw.preview`.
-5. Run `baw.preview`, show the result, then on approval `baw contract-call execute --requestId <id> --json`.
+5. Run `baw.preview`. Show the user `parsedTx` (contract must be the SkillProof contract, value 0), the simulation result and
+   any `risks`. Only on an explicit yes, run `baw contract-call execute --requestId <id> --json`.
+   - `BROADCASTED` → you get `txHash`.
+   - `PENDING_CONFIRMATION` → the user approves in the Binance App.
+   - Errors: 351802 Developer Mode expired · 351803 blocked as high risk (no requestId, stop) · 351805 simulation failed
+     (report the message exactly, e.g. a SkillProof revert such as `DuplicateActiveAttestation`).
 6. **Confirm**: open `$APP/verify?q=<txHash>`.
+
+## Accept / decline an attestation, privacy settings (EIP-712, no gas)
+
+1. `GET $APP/api/preferences/$ME`, then modify `acceptedAttestations` / `declinedAttestations` / toggles, and set
+   `issuedAt` to now (unix seconds).
+2. Sign the typed data shown on the SkillProof Settings page with
+   `baw sign-message preview --binanceChainId 56 --signType EIP712 --message '<eth_signTypedData_v4 request>' --json`,
+   show it to the user, then `baw sign-message execute --requestId <id> --json` (if PENDING_CONFIRMATION: user approves in
+   the App, then `baw sign-message result --order-id <orderId> --json`).
+3. `POST $APP/api/preferences` with the preferences plus `signature`. If `signature` is 64 bytes, append
+   `v = 27 + signatureRecovery`. Signatures older than 15 minutes are rejected.
 
 ## Actions (`call` objects; ids as decimal strings)
 

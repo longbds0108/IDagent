@@ -68,9 +68,11 @@ export function ConnectPanel() {
         </div>
         <h3 className="sp-display mt-10 text-[clamp(2.2rem,4vw,3.4rem)]">Through your AI agent</h3>
         <p className="mt-4 max-w-md text-[14.5px] leading-relaxed text-ink-2">
-          Agent IDs live on Binance Agentic Wallets. Enter your Agentic Wallet address to load your profile. For every action
-          SkillProof prepares calldata and a <code className="font-mono text-[13px] text-peer">baw contract-call</code> command. Your
-          own agent runs it, and you confirm in the Binance App.
+          Your Agent ID lives in your Agentic Wallet, an isolated wallet separate from your regular Binance MPC wallet, so actions
+          must come from that address. Ask your agent for <code className="font-mono text-[13px] text-peer">baw wallet address --json</code> and
+          paste the BSC address. For every action SkillProof prepares calldata and a{' '}
+          <code className="font-mono text-[13px] text-peer">baw contract-call</code> command; your agent runs it with Developer Mode on, and
+          you confirm.
         </p>
         <form
           className="mt-auto space-y-3 pt-8"
@@ -105,8 +107,8 @@ export function ConnectPanel() {
         </div>
         <h3 className="sp-display mt-10 text-[clamp(2.2rem,4vw,3.4rem)]">Browser wallet</h3>
         <p className="mt-4 max-w-md text-[14.5px] leading-relaxed text-ink-2">
-          For organizations, admins, or any injected EVM wallet on BNB Smart Chain. Gated actions still need the signing address
-          to hold an Agent ID.
+          For organization issuers and protocol admins using any injected EVM wallet on BNB Smart Chain. Agent IDs are
+          non-transferable and held by Agentic Wallets, so profile, project and attestation actions are normally done via option 01.
         </p>
         <div className="mt-auto space-y-2 pt-8">
           {unique.length === 0 ? (

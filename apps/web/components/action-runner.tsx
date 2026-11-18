@@ -274,14 +274,29 @@ function AgentHandoff({
     <div className="space-y-3 rounded-md border border-line bg-surface-2 p-3.5 text-[13px]">
       <ReviewRows action={phase.action} fee={phase.fee} gas={null} />
       <ol className="list-decimal space-y-1 pl-5 text-ink-2">
-        <li>Make sure Developer Mode is on in the Binance App (only you can enable it).</li>
-        <li>Ask your AI agent to run the preview below and show you the result.</li>
         <li>
-          If it matches, let the agent run <code className="font-mono">execute</code> with the returned requestId, and confirm
-          in the Binance App if asked.
+          Developer Mode must be on: Binance App → Agentic Wallet → Settings. Only you can enable it; it lapses after 7 days without
+          use. Your agent can check with <code className="font-mono">baw wallet settings --json</code>.
         </li>
-        <li>Paste the transaction hash here to track confirmation.</li>
+        <li>
+          Keep a little BNB in the Agentic Wallet for gas. The address above must match <code className="font-mono">baw wallet address --json</code> on BSC.
+        </li>
+        <li>Ask your agent to run the preview below and show you the result: contract, 0 BNB value, simulation and any risks.</li>
+        <li>
+          If it matches, let the agent run <code className="font-mono">baw contract-call execute --requestId …</code>. A status of
+          PENDING_CONFIRMATION means approve it in the Binance App.
+        </li>
+        <li>Paste the resulting txHash here to track confirmation.</li>
       </ol>
+      <details className="text-[12px] text-ink-3">
+        <summary className="cursor-pointer font-mono uppercase tracking-[0.04em] hover:text-ink">Common errors</summary>
+        <ul className="mt-2 space-y-1">
+          <li><code className="font-mono">351802</code>: Developer Mode expired. Re-enable it in the Binance App.</li>
+          <li><code className="font-mono">351803</code>: the wallet's risk engine blocked the call. Nothing was sent.</li>
+          <li><code className="font-mono">351804</code>: wallet balance is above the Developer Mode balance cap.</li>
+          <li><code className="font-mono">351805</code>: simulation failed (usually the same revert SkillProof showed above).</li>
+        </ul>
+      </details>
       <div className="relative">
         <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all rounded border border-line bg-surface p-2.5 pr-16 font-mono text-[11.5px] leading-relaxed">
           {phase.preview}

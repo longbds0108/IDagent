@@ -5,6 +5,7 @@ import { Suspense, useState } from 'react'
 import { normalizeKey } from '@skillproof/shared'
 import { ActionRunner } from '@/components/action-runner'
 import { AttestForm } from '@/components/dashboard/attest-form'
+import { PreferenceSigner, usePreferences } from '@/components/dashboard/pref-signer'
 import { useIssued, useMyProfile } from '@/components/dashboard/hooks'
 import { AttestationRow } from '@/components/records'
 import { Card, CardBody, CardHeader, Empty } from '@/components/ui/card'
@@ -64,6 +65,9 @@ function Inner() {
   const { account, address } = useIdentity()
   const mine = useMyProfile()
   const issued = useIssued()
+  const prefs = usePreferences(address)
+  const responseOf = (id: string) =>
+    prefs.data?.acceptedAttestations.includes(id) ? 'accepted' : prefs.data?.declinedAttestations.includes(id) ? 'declined' : null
   const initial = { profile: sp.get('profile') ?? undefined, project: sp.get('project') ?? undefined, skill: sp.get('skill') ?? undefined }
   const isRequest = !!initial.profile && initial.profile !== account?.profileId
 
@@ -89,7 +93,10 @@ function Inner() {
       </Card>
 
       <Card>
-        <CardHeader title="Received" description="Attestations other Agent ID holders signed for your projects." />
+        <CardHeader
+          title="Received"
+          description="Attestations other Agent ID holders signed for your projects. Accept to show a signed acknowledgement, or decline to keep one out of your profile summary and reputation. Neither changes the on-chain record."
+        />
         <CardBody>
           {!account?.profileId ? (
             <Empty>No profile yet.</Empty>
@@ -97,9 +104,47 @@ function Inner() {
             <Empty>None yet.</Empty>
           ) : (
             <ul className="space-y-2">
-              {[...mine.data.attestations].reverse().map((a) => (
-                <AttestationRow key={a.id} a={a} projectTitle={titles.get(a.projectId)} />
-              ))}
+              {[...mine.data.attestations].reverse().map((a) => {
+                const r = responseOf(a.id)
+                const without = (list: string[]) => list.filter((x) => x !== a.id)
+                return (
+                  <AttestationRow
+                    key={a.id}
+                    a={a}
+                    projectTitle={titles.get(a.projectId)}
+                    response={r}
+                    actions={
+                      a.active ? (
+                        <span className="flex flex-wrap gap-2">
+                          {r !== 'accepted' ? (
+                            <PreferenceSigner
+                              compact
+                              label="Accept"
+                              build={(cur) => ({ ...cur, acceptedAttestations: [...without(cur.acceptedAttestations), a.id], declinedAttestations: without(cur.declinedAttestations) })}
+                            />
+                          ) : null}
+                          {r !== 'declined' ? (
+                            <PreferenceSigner
+                              compact
+                              variant="danger"
+                              label="Decline"
+                              build={(cur) => ({ ...cur, declinedAttestations: [...without(cur.declinedAttestations), a.id], acceptedAttestations: without(cur.acceptedAttestations) })}
+                            />
+                          ) : null}
+                          {r ? (
+                            <PreferenceSigner
+                              compact
+                              variant="secondary"
+                              label="Clear response"
+                              build={(cur) => ({ ...cur, acceptedAttestations: without(cur.acceptedAttestations), declinedAttestations: without(cur.declinedAttestations) })}
+                            />
+                          ) : null}
+                        </span>
+                      ) : null
+                    }
+                  />
+                )
+              })}
             </ul>
           )}
         </CardBody>

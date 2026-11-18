@@ -194,6 +194,34 @@ async function main() {
   const [valid] = await pub.readContract({ address: contracts.credentialRegistry, abi: credentialRegistryAbi, functionName: 'verifyCredential', args: [BigInt(cred.id)] })
   check('Revoked credential no longer verifies', valid === false)
 
+  // --- Signed off-chain preferences (EIP-712), using well-known public anvil test keys
+  const { privateKeyToAccount } = await import('viem/accounts')
+  const prefMod = (await import('../lib/preferences')) as Record<string, unknown> & { default?: Record<string, unknown> }
+  const P = (prefMod.preferenceDomain ? prefMod : prefMod.default) as typeof import('../lib/preferences')
+  const k2 = privateKeyToAccount('0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a')
+  const k1 = privateKeyToAccount('0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d')
+  const sign = async (signer: typeof k1, prefs: ReturnType<typeof P.DEFAULT_PREFERENCES>) =>
+    signer.signTypedData({ domain: P.preferenceDomain(contracts.profileRegistry), types: P.PREFERENCE_TYPES, primaryType: 'Preferences', message: P.preferenceMessage(prefs) })
+  const post = (body: unknown) => fetch(`${APP}/api/preferences`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  const prefs = { ...P.DEFAULT_PREFERENCES(k2.address), reputationOptIn: true, issuedAt: Math.floor(Date.now() / 1000) }
+  const forged = await post({ ...prefs, signature: await sign(k1, prefs) })
+  check('Preferences signed by another key are rejected', forged.status === 400)
+  const okRes = await post({ ...prefs, signature: await sign(k2, prefs) })
+  check('Owner-signed preferences are stored', okRes.ok)
+  const replay = await post({ ...prefs, signature: await sign(k2, prefs) })
+  check('Replayed preferences are rejected', replay.status === 400)
+  const foreign = { ...prefs, acceptedAttestations: [att.id], issuedAt: prefs.issuedAt + 1 }
+  const foreignRes = await post({ ...foreign, signature: await sign(k2, foreign) })
+  check('Cannot respond to attestations made to someone else', foreignRes.status === 400)
+  const stored = await fetch(`${APP}/api/preferences/${k2.address}`).then((r) => r.json())
+  check('Stored preferences read back with opt-in', stored.signed === true && stored.reputationOptIn === true)
+  const rep = await fetch(`${APP}/reputation?profile=${pidA}`).then((r) => r.text())
+  check('Reputation breakdown renders three separate components', ['Evidence', 'Peer', 'Issuer'].every((x) => rep.includes(x)))
+  const act = await fetch(`${APP}/activity?type=attestation`).then((r) => r.text())
+  check('Activity feed lists the attestation and its revocation', act.includes('attested') && act.includes('revoked'))
+  const orgs = await fetch(`${APP}/organizations`).then((r) => r.text())
+  check('Organizations lists the approved issuer', orgs.includes('Demo Hackathon Org'))
+
   const failed = results.filter((r) => r[1] === 'FAIL')
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`)
   console.log(`Open ${APP}/p/${A!.label}.ai and ${APP}/verify?q=credential:${cred.id}`)

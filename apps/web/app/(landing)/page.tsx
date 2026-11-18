@@ -275,6 +275,9 @@ export default async function Landing() {
           <div className="sp-footer__nav">
             <nav aria-label="Site">
               <Link href="/builders">BUILDERS</Link>
+              <Link href="/organizations">ORGANIZATIONS</Link>
+              <Link href="/activity">ACTIVITY</Link>
+              <Link href="/reputation">REPUTATION</Link>
               <Link href="/verify">VERIFY</Link>
               <Link href="/dashboard">DASHBOARD</Link>
             </nav>

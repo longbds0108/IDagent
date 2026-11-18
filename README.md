@@ -36,6 +36,27 @@ Agent ID is enforced **inside the contracts**, not just in the UI:
 
 Details, verified facts and spec conflicts: [`docs/agent-id-integration.md`](docs/agent-id-integration.md).
 
+## Pages
+
+| # | Page | Route | What it does |
+|---|---|---|---|
+| 1 | Home | `/` | Product intro, live protocol counters, trust-level explainer |
+| 2 | Explore Builders | `/builders` | Search and filter profiles by name, `.ai` or skill |
+| 3 | Builder Profile | `/p/[id]` | Public profile, projects, peer attestations, credentials, identity status |
+| 4 | Dashboard | `/dashboard` | Profile overview, completeness, recent on-chain activity |
+| 5 | My Projects | `/dashboard/projects` | Add, revise (supersede) and revoke project evidence |
+| 6 | Endorsements | `/dashboard/endorsements` | Request links, sign attestations, accept / decline received ones, revoke sent ones |
+| 7 | Credentials | `/dashboard/credentials` | Received credentials, issuer issuance and revocation, admin issuer allowlist |
+| 8 | Verification Center | `/verify` | Decode a tx, check a record, profile or address live on-chain |
+| 9 | Reputation | `/reputation` | Opt-in, published formula; Evidence / Peer / Issuer scored separately with history |
+| 10 | Organizations | `/organizations` | Approved and removed issuers, what each has issued |
+| 11 | Activity | `/activity` | Filterable event feed rebuilt from contract state |
+| 12 | Settings | `/dashboard/settings` | Account status, connections, signed privacy preferences |
+
+Accepting or declining an attestation, reputation opt-in and privacy toggles are **owner-signed EIP-712
+messages** stored off-chain (Agentic Wallets sign with `baw sign-message`). They change presentation only; the
+on-chain records never change and stay visible in Verify and Activity.
+
 ## Repository
 
 ```
@@ -62,9 +83,9 @@ pnpm dev                                # http://localhost:3000
 ```bash
 pnpm contracts:test                                          # 57 unit + fuzz tests
 BSC_MAINNET_RPC_URL=https://bsc-rpc.publicnode.com pnpm contracts:test:fork   # real Agent ID contract on a fork
-pnpm test                                                    # shared + web unit tests (vitest)
-cd apps/web && pnpm build && npx playwright test             # 14 browser tests (desktop + mobile)
-pnpm demo:local                                              # full end-to-end flow, 23 checks (below)
+pnpm test                                                    # shared + web unit tests incl. reputation formula
+cd apps/web && pnpm build && npx playwright test             # 22 browser tests (desktop + mobile)
+pnpm demo:local                                              # full end-to-end flow, 31 checks (below)
 ```
 
 `pnpm demo:local` starts a local chain-56 node that mirrors the **real** Agent ID bytecode and the storage slots it

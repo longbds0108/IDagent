@@ -17,6 +17,35 @@ Checked on 2026-11-18 against the official Binance pages and directly on BNB Sma
 | No documented injected provider / WalletConnect for Agentic Wallet | Agentic Wallet docs (absence of documentation) |
 | Hackathon red line: no QR / pairing-code login on third-party sites, no server-side sessions | Announcement |
 
+## Operating facts for Agentic Wallet users (re-checked 2026-11-18)
+
+Sources: the hackathon announcement, the official skill
+(`binance/binance-skills-hub/skills/binance-web3/binance-agentic-wallet`, SKILL.md v1.15.0, references
+`external-sign.md`, `wallet-setting.md`, `wallet-view.md`, `gas.md`), and the Developer Mode and Security Model pages.
+
+- **Which address holds the Agent ID:** the Agentic Wallet, described as "an isolated wallet, separate from your existing
+  Binance MPC Wallet". Claiming deposits BNB into the Agentic Wallet address and sends the claim transaction from it. We
+  confirmed on-chain that mint transactions are sent by the address that receives the token. Because Agent IDs are
+  non-transferable, Agent-ID-gated SkillProof calls must be sent from the Agentic Wallet.
+- **How that wallet calls a third-party contract:** only through Developer Mode:
+  `baw contract-call preview --binanceChainId 56 --from <agentic> --to <contract> --value 0 --inputData <calldata> --json`,
+  then `baw contract-call execute --requestId <id> --json`. `BROADCASTED` returns `txHash`; `PENDING_CONFIRMATION` means
+  the user approves in the Binance App. No WalletConnect, injected provider or dApp browser is documented.
+- **Developer Mode:**
+  - It can be enabled only in the App (Agentic Wallet → Settings) and lasts 7 days, extended on each use.
+  - It has its own daily USD pool (`devMode.dailyLimit`, `developerModeQuotaUsed`, reset at 00:00 UTC).
+  - Enabling is refused while the wallet balance is above the Developer Mode balance cap (351804).
+  - High-risk previews are blocked (351803), an expired mode errors with 351802, and simulation failures error with 351805.
+  - No contract allowlist is documented.
+- **Signing:** EIP-712 only, via `baw sign-message preview/execute/result`. `execute` returns `signature` and
+  `signatureRecovery` separately; SkillProof accepts both forms. EIP-191 `personal_sign`, and therefore SIWE, is not
+  supported.
+- **Address lookup:** `baw wallet address --json` returns `addresses[]`; use the entry with `binanceChainId` "56".
+- **Gas:** paid in BNB from the Agentic Wallet. `contract-call` takes no gas price; `--gasLimit` (21000–15000000) is an
+  optional cap. SkillProof writes cost about 0.00001–0.00005 BNB at 0.05 gwei.
+- **Names:** `name.ai`, lowercase letters and digits, 3–15 characters (two-digit IDs exist as prizes). The claim is free
+  apart from network fees.
+
 ## Where Agent ID gates each core action
 
 | Action | Contract | Check (on-chain) |

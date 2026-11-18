@@ -37,6 +37,32 @@ test.describe('public pages work without a wallet', () => {
   })
 })
 
+test.describe('phase-2 pages', () => {
+  test('organizations directory explains issuer approval', async ({ page }) => {
+    await page.goto('/organizations')
+    await expect(page.getByRole('heading', { level: 1, name: /issue credentials/ })).toBeVisible()
+    await expect(page.getByText('APPROVED NOW')).toBeVisible()
+  })
+
+  test('activity feed renders with filters', async ({ page }) => {
+    await page.goto('/activity?type=attestation')
+    await expect(page.getByRole('heading', { level: 1, name: /that happened/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'ATTESTATIONS', exact: true })).toBeVisible()
+  })
+
+  test('reputation publishes its formula and never a single combined score', async ({ page }) => {
+    await page.goto('/reputation')
+    await expect(page.getByRole('heading', { level: 1, name: /can audit/ })).toBeVisible()
+    for (const c of ['EVIDENCE', 'PEER', 'ISSUER']) await expect(page.getByText(c, { exact: true }).first()).toBeVisible()
+    await expect(page.getByText(/never merged into one number/)).toBeVisible()
+  })
+
+  test('/settings routes to the dashboard settings tab', async ({ page }) => {
+    await page.goto('/settings')
+    await expect(page).toHaveURL(/\/dashboard\/settings$/)
+  })
+})
+
 test.describe('dashboard connection', () => {
   test('offers agent path and browser wallet, never QR / pairing codes', async ({ page }) => {
     await page.goto('/dashboard')

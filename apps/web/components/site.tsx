@@ -8,6 +8,9 @@ import { IdentityChip, MainnetBadge } from './wallet/connect'
 
 const NAV = [
   ['/builders', 'BUILDERS'],
+  ['/organizations', 'ORGS'],
+  ['/activity', 'ACTIVITY'],
+  ['/reputation', 'REPUTATION'],
   ['/verify', 'VERIFY'],
   ['/dashboard', 'DASHBOARD'],
 ] as const
@@ -24,7 +27,7 @@ export function BrandMark({ className = '' }: { className?: string }) {
 
 export function SiteHeader() {
   const path = usePathname()
-  const active = NAV.findIndex(([href]) => path === href || path.startsWith(`${href}/`))
+  const active = NAV.findIndex(([href]) => path === href || path.startsWith(`${href}/`) || (href === '/dashboard' && path === '/settings'))
   return (
     <>
       <header className="sp-header sp-header--app sp-header--dark">
@@ -32,7 +35,7 @@ export function SiteHeader() {
           <BrandMark />
           <span>SkillProof</span>
         </Link>
-        <nav className="sp-nav sp-nav--3" aria-label="Main" style={{ ['--sp-nav-index' as string]: Math.max(active, 0) }}>
+        <nav className="sp-nav sp-nav--app" aria-label="Main" style={{ ['--sp-nav-index' as string]: Math.max(active, 0), ['--sp-nav-n' as string]: NAV.length }}>
           <span className={`sp-nav__pill ${active < 0 ? 'is-hidden' : ''}`} aria-hidden />
           {NAV.map(([href, label], i) => (
             <Link key={href} href={href} className={i === active ? 'is-active' : undefined} aria-current={i === active ? 'page' : undefined}>

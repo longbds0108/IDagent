@@ -6,10 +6,10 @@ import { keccak256, stringToBytes } from 'viem'
  * 2026-11-18. SkillProof re-checks ownership on-chain (`ownerOf`) rather than trusting this
  * client-side, so a wrong assumption fails closed.
  */
+/** Agent ID names are lowercase letters and digits (3–15 per the docs; 2-digit IDs exist as prizes). */
 export function parseAgentLabel(input: string): string | null {
   const s = input.trim().toLowerCase().replace(/\.ai$/, '')
-  if (!s || s.length > 64 || /[\s/]/.test(s)) return null
-  return s
+  return /^[a-z0-9]{1,15}$/.test(s) ? s : null
 }
 
 export function agentLabelToTokenId(label: string): bigint {

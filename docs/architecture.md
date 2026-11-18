@@ -53,3 +53,30 @@ All four are non-upgradeable. `Pausable` stops new writes; revocations keep work
 | `ISSUER_ROLE` (CredentialRegistry) | none yet | issue credentials; revoke own | issue to own profile |
 
 Recommended: transfer `DEFAULT_ADMIN_ROLE` and `PAUSER_ROLE` to a multisig, then renounce from the deployer.
+
+## Off-chain signed preferences (phase 2)
+
+`POST /api/preferences` accepts a full preferences snapshot signed with EIP-712
+(domain `SkillProof Preferences` v1, chain 56, verifying contract = SkillProfileRegistry):
+`reputationOptIn`, `hideFromExplore`, `hideSocialLinks`, `hideAvatar`, `acceptedAttestations[]`,
+`declinedAttestations[]`, `issuedAt`. The server verifies the signature with `verifyTypedData`
+(EOA, ERC-1271 and ERC-6492), rejects stale or replayed snapshots (`issuedAt` must be within 15 minutes
+and newer than the stored one), and only allows responses to attestations made to the signer's own
+profile. Storage: Postgres table `account_preferences`, or `.data/preferences` locally.
+
+## Reputation formula v1
+
+Implemented in `apps/web/lib/reputation.ts` (unit-tested) and published on `/reputation`. Three
+components are reported separately and never summed:
+
+- **Evidence**: 10 points per active project with hash-verified metadata, plus 2 per evidence reference (max 5). Max 5 projects. Cap 100.
+- **Peer**: 20 points × weight per distinct signer. Weight is 1 + 0.25 per extra skill (max +0.5), ×0.5 for reciprocal pairs, ×0.8 for signers without a profile. Declined attestations are excluded. Cap 100.
+- **Issuer**: 40 points for the first valid credential per approved issuer, 10 for each further one from the same issuer. Cap 100.
+
+History is replayed in event order (timestamp, then block).
+
+## Activity feed
+
+`/activity` is rebuilt from contract state: every record stores its created, closed and revoked blocks
+and timestamps, so no event indexer or derived database is needed. It is cached for 20 s per server
+instance.
