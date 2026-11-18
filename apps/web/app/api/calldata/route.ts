@@ -5,7 +5,11 @@ import { actionSchema } from '@/lib/action-schema'
 import { deployedContracts } from '@/lib/env'
 import { json } from '@/lib/http'
 
-const body = z.object({ from: z.string().optional(), call: z.unknown() })
+const body = z.object({
+  from: z.string().optional(),
+  call: z.unknown(),
+  gasLimit: z.string().regex(/^\d{5,8}$/).optional(),
+})
 
 /**
  * Agent path: returns the exact calldata for a SkillProof action and the matching
@@ -34,6 +38,6 @@ export async function POST(req: Request) {
     to: call.to,
     data: call.data,
     value: '0',
-    baw: from ? { preview: bawPreviewCommand(from, call), execute: 'baw contract-call execute --requestId <requestId from preview> --json' } : null,
+    baw: from ? { preview: bawPreviewCommand(from, call, parsed.data.gasLimit ? BigInt(parsed.data.gasLimit) : undefined), execute: 'baw contract-call execute --requestId <requestId from preview> --json' } : null,
   })
 }

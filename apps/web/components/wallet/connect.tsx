@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { isAddress } from 'viem'
 import { useAccount, useChainId, useConnect, useSwitchChain } from 'wagmi'
 import { BSC_CHAIN_ID } from '@skillproof/shared'
@@ -58,6 +58,14 @@ export function ConnectPanel() {
   const [agent, setAgent] = useState('')
   const [agentErr, setAgentErr] = useState<string | null>(null)
   const unique = connectors.filter((c, i, arr) => arr.findIndex((x) => x.name === c.name) === i)
+  // Inside the Binance Wallet dApp browser (Web3 Connect provider). That is the regular MPC wallet, not the
+  // Agentic Wallet, so it holds no Agent ID; it still works for issuers and admins.
+  const [inBinance, setInBinance] = useState(false)
+  useEffect(() => {
+    const w = window as unknown as { ethereum?: { isBinance?: boolean }; binancew3w?: unknown }
+    setInBinance(!!w.ethereum?.isBinance || !!w.binancew3w)
+  }, [])
+  const label = (name: string) => (name === 'Injected' ? (inBinance ? 'Binance Wallet' : 'Browser wallet') : name)
 
   return (
     <div className="grid gap-5 lg:grid-cols-2">
@@ -122,12 +130,18 @@ export function ConnectPanel() {
                 disabled={isPending}
                 onClick={() => connect({ connector: c, chainId: BSC_CHAIN_ID })}
               >
-                <span>{c.name === 'Injected' ? 'Browser wallet' : c.name}</span>
+                <span>{label(c.name)}</span>
                 <span aria-hidden>→</span>
               </Button>
             ))
           )}
           {error ? <p className="text-[12px] text-bad">{error.message.split('\n')[0]}</p> : null}
+          {inBinance ? (
+            <p className="text-[12px] leading-relaxed text-warn">
+              You are in the Binance Wallet browser. This is your regular MPC wallet; your Agent ID lives in the separate Agentic
+              Wallet, so use option 01 for profile, project and attestation actions.
+            </p>
+          ) : null}
         </div>
       </section>
     </div>

@@ -86,6 +86,8 @@ BSC_MAINNET_RPC_URL=https://bsc-rpc.publicnode.com pnpm contracts:test:fork   # 
 pnpm test                                                    # shared + web unit tests incl. reputation formula
 cd apps/web && pnpm build && npx playwright test             # 22 browser tests (desktop + mobile)
 pnpm demo:local                                              # full end-to-end flow, 31 checks (below)
+SKIP_E2E=1 KEEP_RUNNING=1 APP_PORT=3300 ANVIL_PORT=8546 pnpm demo:local   # then, in apps/web:
+APP=http://localhost:3300 RPC=http://127.0.0.1:8546 pnpm e2e:journey     # 38-step user journey through the real UI
 ```
 
 `pnpm demo:local` starts a local chain-56 node that mirrors the **real** Agent ID bytecode and the storage slots it

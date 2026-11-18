@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/field'
 import { Notice } from '@/components/ui/card'
 import { useIdentity } from '@/components/wallet/identity'
+import { useToast } from '@/components/toast'
 import { deployedContracts, publicEnv, isLocalRpc } from '@/lib/env'
 import { explainError } from '@/lib/errors'
 import { toJsonSafe } from '@/lib/utils'
@@ -61,6 +62,7 @@ export function ActionRunner({
   const qc = useQueryClient()
   const router = useRouter()
   const [phase, setPhase] = useState<Phase>({ k: 'idle' })
+  const toast = useToast()
   const [pasted, setPasted] = useState('')
   const contracts = deployedContracts()
 
@@ -86,10 +88,19 @@ export function ActionRunner({
       const r = await publicClient!.waitForTransactionReceipt({ hash, timeout: 180_000 })
       if (r.status === 'success') {
         setPhase({ k: 'confirmed', hash, block: r.blockNumber })
+        toast({
+          tone: 'ok',
+          text: `${label ?? 'Action'} confirmed in block ${r.blockNumber}.`,
+          href: explorerTxUrl(hash, publicEnv.explorerUrl),
+          linkLabel: isLocalRpc ? 'Local tx' : 'BscScan',
+        })
         await qc.invalidateQueries()
         router.refresh()
         onConfirmed?.(hash)
-      } else setPhase({ k: 'reverted', hash })
+      } else {
+        setPhase({ k: 'reverted', hash })
+        toast({ tone: 'bad', text: `${label ?? 'Action'} reverted on-chain. Nothing changed.`, href: explorerTxUrl(hash, publicEnv.explorerUrl), linkLabel: 'Tx' })
+      }
     } catch (e) {
       setPhase({ k: 'error', message: `Could not confirm transaction yet: ${explainError(e)}` })
     }
@@ -117,7 +128,7 @@ export function ActionRunner({
       const cd = await fetch('/api/calldata', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ from: address, call: toJsonSafe(action) }),
+        body: JSON.stringify({ from: address, call: toJsonSafe(action), gasLimit: sim.gas ? gasWithMargin(BigInt(sim.gas)).toString() : undefined }),
       }).then((r) => r.json())
       if (!cd.baw) return setPhase({ k: 'error', message: cd.error ?? 'Could not prepare calldata' })
       return setPhase({ k: 'agent', action, fee: sim.feeBnb, to: cd.to, data: cd.data, preview: cd.baw.preview, execute: cd.baw.execute })
@@ -125,7 +136,7 @@ export function ActionRunner({
     setPhase({ k: 'review', action, fee: sim.feeBnb ?? null, gas: sim.gas ?? null })
   }
 
-  async function sign(action: SkillProofAction) {
+  async function sign(action: SkillProofAction, estimatedGas: string | null) {
     if (!contracts) return
     if (chainId !== BSC_CHAIN_ID) {
       try {
@@ -143,6 +154,9 @@ export function ActionRunner({
         abi: call.abi as never,
         functionName: call.functionName as never,
         args: call.args as never,
+        // Gas use depends on the block it lands in (timestamps and block numbers are written), so never send
+        // the exact estimate: a 30% margin avoids out-of-gas reverts that would still cost the user a fee.
+        ...(estimatedGas ? { gas: gasWithMargin(BigInt(estimatedGas)) } : {}),
       })
       await track(hash)
     } catch (e) {
@@ -184,7 +198,7 @@ export function ActionRunner({
           <ReviewRows action={phase.action} fee={phase.fee} gas={phase.gas} />
           {wrongChain ? <Notice tone="bad">Your wallet is not on BNB Smart Chain. You will be asked to switch first.</Notice> : null}
           <div className="flex flex-wrap gap-2">
-            <Button variant={variant} onClick={() => sign(phase.action)}>
+            <Button variant={variant} onClick={() => sign(phase.action, phase.gas)}>
               Confirm in wallet
             </Button>
             <Button variant="ghost" onClick={() => setPhase({ k: 'idle' })}>
@@ -330,6 +344,12 @@ function AgentHandoff({
       </div>
     </div>
   )
+}
+
+/** Estimate × 1.3, clamped to the range `baw contract-call --gasLimit` accepts (21000–15000000). */
+export function gasWithMargin(estimate: bigint): bigint {
+  const g = (estimate * 13n) / 10n
+  return g < 21_000n ? 21_000n : g > 15_000_000n ? 15_000_000n : g
 }
 
 export function formatBnb(wei: bigint) {

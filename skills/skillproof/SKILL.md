@@ -44,7 +44,8 @@ transaction through the official Agentic Wallet flow.
 3. **Dry-run**: `POST $APP/api/simulate` with `{"from":"$ME","call":{...action}}` → `{ ok, feeBnb }` or `{ ok:false, error }`.
    Stop and tell the user if `ok` is false.
 4. **Get the command**: `POST $APP/api/calldata` with the same body → `baw.preview`.
-5. Run `baw.preview`. Show the user `parsedTx` (contract must be the SkillProof contract, value 0), the simulation result and
+5. Run `baw.preview` exactly as returned. It includes `--gasLimit` set to SkillProof's estimate +30%, because these
+   contracts write block timestamps and numbers, so an exact estimate can run out of gas. Show the user `parsedTx` (contract must be the SkillProof contract, value 0), the simulation result and
    any `risks`. Only on an explicit yes, run `baw contract-call execute --requestId <id> --json`.
    - `BROADCASTED` → you get `txHash`.
    - `PENDING_CONFIRMATION` → the user approves in the Binance App.

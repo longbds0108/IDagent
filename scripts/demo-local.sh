@@ -55,14 +55,18 @@ ENV
 
 echo "▸ building and starting web app on :$APP_PORT"
 cd "$ROOT/apps/web"
-rm -rf .data/metadata-local
+rm -rf .data/metadata-local .data/metadata-local-preferences
 pnpm build >/dev/null
 pnpm start -p "$APP_PORT" >"${WEB_LOG:-/dev/null}" 2>&1 &
 WEB_PID=$!
 for _ in $(seq 1 90); do curl -sf "http://localhost:$APP_PORT/api/issuers" >/dev/null && break; sleep 1; done
 
-echo "▸ running end-to-end flows"
-APP_URL="http://localhost:$APP_PORT" FORK_RPC="$RPC" MIRROR_FILE="$MIRROR" pnpm exec tsx scripts/demo-e2e.mts
+if [[ "${SKIP_E2E:-0}" != "1" ]]; then
+  echo "▸ running end-to-end flows"
+  APP_URL="http://localhost:$APP_PORT" FORK_RPC="$RPC" MIRROR_FILE="$MIRROR" pnpm exec tsx scripts/demo-e2e.mts
+else
+  echo "▸ app ready at http://localhost:$APP_PORT (end-to-end flows skipped)"
+fi
 
 if [[ "${KEEP_RUNNING:-0}" == "1" ]]; then
   echo "▸ app running at http://localhost:$APP_PORT (Ctrl+C to stop)"

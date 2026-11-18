@@ -76,6 +76,9 @@ let store: PrefStore | null = null
 export function preferenceStore(): PrefStore {
   store ??= process.env.DATABASE_URL
     ? new PgPrefs(process.env.DATABASE_URL)
-    : new FsPrefs(join(process.env.METADATA_DIR ? join(process.env.METADATA_DIR, '..') : join(process.cwd(), '.data'), 'preferences'))
+    : new FsPrefs(
+        process.env.PREFERENCES_DIR ||
+          (process.env.METADATA_DIR ? `${process.env.METADATA_DIR}-preferences` : join(process.cwd(), '.data', 'preferences')),
+      )
   return store
 }

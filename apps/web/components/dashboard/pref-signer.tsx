@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Notice } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/field'
 import { useIdentity } from '@/components/wallet/identity'
+import { useToast } from '@/components/toast'
 import { deployedContracts } from '@/lib/env'
 import { explainError } from '@/lib/errors'
 import { getJson } from '@/lib/client-api'
@@ -57,6 +58,7 @@ export function PreferenceSigner({
   const { signTypedDataAsync } = useSignTypedData()
   const qc = useQueryClient()
   const [phase, setPhase] = useState<Phase>({ k: 'idle' })
+  const toast = useToast()
   const [sig, setSig] = useState('')
   const [rec, setRec] = useState('')
   const normalized = normalizeSignature(sig, rec)
@@ -71,15 +73,23 @@ export function PreferenceSigner({
       body: JSON.stringify({ ...prefs, signature }),
     })
     const j = await r.json().catch(() => ({}))
-    if (!r.ok) return setPhase({ k: 'error', msg: j.error ?? 'Could not save preferences' })
+    if (!r.ok) {
+      toast({ tone: 'bad', text: j.error ?? 'Could not save preferences' })
+      return setPhase({ k: 'error', msg: j.error ?? 'Could not save preferences' })
+    }
     await qc.invalidateQueries()
     setPhase({ k: 'done' })
+    toast({ tone: 'ok', text: `${label}: signed preferences saved. No transaction was sent.` })
     setSig('')
   }
 
   async function start() {
-    const base = current.data ?? DEFAULT_PREFERENCES(address!)
-    const prefs: Preferences = { ...build(base), account: address!, issuedAt: Math.floor(Date.now() / 1000) }
+    // Always build on the latest stored snapshot (another tab or a previous click may have saved since the
+    // page loaded), and keep issuedAt strictly increasing even within the same second or with a slow clock.
+    const latest = await getJson<Preferences & { signed: boolean }>(`/api/preferences/${address}`).catch(() => null)
+    const base = latest ?? current.data ?? DEFAULT_PREFERENCES(address!)
+    const issuedAt = Math.max(Math.floor(Date.now() / 1000), (base.issuedAt || 0) + 1)
+    const prefs: Preferences = { ...build(base), account: address!, issuedAt }
     if (mode === 'agent') return setPhase({ k: 'agent', prefs, cmd: bawSignCommand(prefs, c!.profileRegistry) })
     try {
       setPhase({ k: 'signing' })

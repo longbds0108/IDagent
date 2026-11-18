@@ -140,9 +140,10 @@ export function prepareAction(a: SkillProofAction, c: ContractAddresses): Prepar
  * requestId; the agent shows the preview to the user and only then runs `execute`, and
  * the Binance App may ask for a further confirmation. SkillProof never runs this itself.
  */
-export function bawPreviewCommand(from: Address, call: Pick<PreparedCall, 'to' | 'data'>): string {
+export function bawPreviewCommand(from: Address, call: Pick<PreparedCall, 'to' | 'data'>, gasLimit?: bigint): string {
   if (!isAddress(from)) throw new Error('Invalid from address')
   if (!isAddress(call.to) || !isHex(call.data)) throw new Error('Invalid call')
+  if (gasLimit !== undefined && (gasLimit < 21_000n || gasLimit > 15_000_000n)) throw new Error('gasLimit out of range')
   return [
     'baw contract-call preview',
     `--binanceChainId ${BSC_CHAIN_ID}`,
@@ -150,6 +151,8 @@ export function bawPreviewCommand(from: Address, call: Pick<PreparedCall, 'to' |
     `--to ${call.to}`,
     '--value 0',
     `--inputData ${call.data}`,
+    // An explicit cap with margin: SkillProof writes block timestamps/numbers, so exact estimates can run out of gas.
+    ...(gasLimit !== undefined ? [`--gasLimit ${gasLimit}`] : []),
     '--json',
   ].join(' ')
 }

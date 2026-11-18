@@ -8,7 +8,8 @@
     "start": "next start -p 3000",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "e2e:journey": "node e2e-local/user-journey.mjs"
   },
   "dependencies": {
     "@skillproof/shared": "workspace:*",
