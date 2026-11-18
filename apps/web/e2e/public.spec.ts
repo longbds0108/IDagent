@@ -1,0 +1,54 @@
+import { expect, test } from '@playwright/test'
+
+test.describe('public pages work without a wallet', () => {
+  test('home explains the three trust levels and has no generic "Verified" badge', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: /Show the work/ })).toBeVisible()
+    for (const label of ['Self-reported', 'Peer attested', 'Approved issuer credential']) {
+      await expect(page.getByText(label, { exact: true }).first()).toBeVisible()
+    }
+    await expect(page.locator('text=/^Verified$/')).toHaveCount(0)
+    await expect(page.getByText('BSC MAINNET · CHAIN 56 · GAS IN BNB')).toBeAttached()
+  })
+
+  test('explore builders renders and filters', async ({ page }) => {
+    await page.goto('/builders?skill=solidity')
+    await expect(page.getByRole('heading', { level: 1, name: /Builders/ })).toBeVisible()
+  })
+
+  test('verification center decodes a SkillProof deployment transaction', async ({ page }) => {
+    const tx = process.env.E2E_VERIFY_TX
+    test.skip(!tx, 'set E2E_VERIFY_TX to a SkillProof transaction hash')
+    await page.goto(`/verify?q=${tx}`)
+    await expect(page.getByText(/Executed successfully/)).toBeVisible()
+    const scan = page.getByRole('link', { name: /BscScan/ }).first()
+    await expect(scan).toHaveAttribute('href', new RegExp(`^https://bscscan\\.com/tx/${tx}$`, 'i'))
+  })
+
+  test('verification center rejects nonsense clearly', async ({ page }) => {
+    await page.goto('/verify?q=hello%20world')
+    await expect(page.getByText(/Could not understand/)).toBeVisible()
+  })
+
+  test('unknown profile is a clean 404', async ({ page }) => {
+    const res = await page.goto('/p/999999999')
+    expect(res?.status()).toBe(404)
+    await expect(page.getByText('Profile not found')).toBeVisible()
+  })
+})
+
+test.describe('dashboard connection', () => {
+  test('offers agent path and browser wallet, never QR / pairing codes', async ({ page }) => {
+    await page.goto('/dashboard')
+    await expect(page.getByRole('heading', { name: 'Through your AI agent' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Browser wallet' })).toBeVisible()
+    await expect(page.locator('body')).not.toContainText(/scan (the )?QR|pairing code:/i)
+  })
+
+  test('a wallet without Agent ID gets a clear eligibility error', async ({ page }) => {
+    await page.goto('/dashboard')
+    await page.getByLabel('Agentic Wallet address').fill('0x000000000000000000000000000000000000dEaD')
+    await page.getByRole('button', { name: 'Use this address' }).click()
+    await expect(page.getByText(/No Agent ID found for this address/)).toBeVisible({ timeout: 20_000 })
+  })
+})

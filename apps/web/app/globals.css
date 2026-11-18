@@ -1,0 +1,186 @@
+@import 'tailwindcss';
+
+/* App tokens — the Shiny-derived dark system shared with the landing page (see shiny.css).
+   The dApp is dark-only, like its reference. */
+:root {
+  color-scheme: dark;
+  --bg: #111015;
+  --surface: #16121f;
+  --surface-2: #1d1829;
+  --ink: #f4f2f7;
+  --ink-2: #a79db5;
+  --ink-3: #776f82;
+  --line: #2a2438;
+  --line-strong: #3a3347;
+  --accent: #9b5de5;
+  --accent-hover: #7640bc;
+  --accent-ink: #0f0c12;
+  --focus: #b57dee;
+
+  --self: #b9b0c6;
+  --self-bg: rgba(167, 157, 181, 0.1);
+  --peer: #c39bf5;
+  --peer-bg: rgba(155, 93, 229, 0.14);
+  --issuer: #7db4ff;
+  --issuer-bg: rgba(63, 145, 255, 0.13);
+
+  --ok: #4fd1c5;
+  --ok-bg: rgba(79, 209, 197, 0.1);
+  --warn: #e8b54c;
+  --warn-bg: rgba(232, 181, 76, 0.1);
+  --bad: #ff7b80;
+  --bad-bg: rgba(229, 72, 77, 0.12);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-focus: var(--focus);
+  --color-self: var(--self);
+  --color-self-bg: var(--self-bg);
+  --color-peer: var(--peer);
+  --color-peer-bg: var(--peer-bg);
+  --color-issuer: var(--issuer);
+  --color-issuer-bg: var(--issuer-bg);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-bad: var(--bad);
+  --color-bad-bg: var(--bad-bg);
+  --font-sans: var(--sp-font-body), 'Inter Tight', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--sp-font-mono), 'JetBrains Mono', ui-monospace, monospace;
+  --font-display: var(--sp-font-display), 'Fraunces', Georgia, serif;
+  /* Square, editorial geometry like the reference: near-zero radii everywhere. */
+  --radius-sm: 1px;
+  --radius: 2px;
+  --radius-md: 2px;
+  --radius-lg: 3px;
+  --radius-xl: 4px;
+}
+
+html {
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--bg);
+}
+
+/* Shiny docs-page atmosphere: a violet glow plus faint diagonal hairlines, app pages only. */
+.sp-app {
+  background:
+    radial-gradient(circle at 12% -4%, rgba(155, 93, 229, 0.16), transparent 30rem),
+    radial-gradient(circle at 100% 18%, rgba(63, 145, 255, 0.07), transparent 26rem),
+    repeating-linear-gradient(110deg, rgba(255, 255, 255, 0.016) 0 1px, transparent 1px 4px),
+    var(--bg);
+  min-height: 100dvh;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  color: #0d0c10;
+  background: var(--accent);
+}
+
+input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(0.8);
+}
+
+select option {
+  background: var(--surface);
+}
+
+.break-anywhere {
+  overflow-wrap: anywhere;
+}
+
+/* Mono label used for kickers, table headings and field labels. */
+.sp-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Big Inter Tight display headline used by every page hero. */
+.sp-display {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  letter-spacing: -0.065em;
+  line-height: 0.92;
+}
+
+/* Panel with the record-card gradient from the landing page. */
+.sp-panel {
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 85% 0%, rgba(155, 93, 229, 0.08), transparent 40%),
+    linear-gradient(160deg, rgba(29, 24, 41, 0.72), rgba(19, 17, 23, 0.72));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* Principle-style hover rule: a violet line that draws across the top edge. */
+.sp-rule {
+  position: relative;
+}
+
+.sp-rule::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  top: -1px;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (hover: hover) {
+  .sp-rule:hover::before {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes sp-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sp-enter {
+  animation: sp-fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-enter {
+    animation: none;
+  }
+  .sp-rule::before {
+    transition: none;
+  }
+}

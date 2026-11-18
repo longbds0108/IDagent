@@ -1,0 +1,16 @@
+{
+  "admin": "0xF9642B695D4DDf58599c953a791F94c2e96b6a57",
+  "agentId": "0x60B9262456dE011F7d15a54CdD8c48bAaa8B022F",
+  "chainId": 56,
+  "credentialRegistry": "0x209f0E30e1aec3470fF41a8fC67b0351f51a5433",
+  "deployBlock": 134334098,
+  "projectEvidenceRegistry": "0x2D3d33263DdC5c117ddCC0238DE6C313021a2f7F",
+  "skillAttestation": "0x713B02D4539F1D9EB60123C68cbf0D9fFA83612c",
+  "skillProfileRegistry": "0xDaf663BF05701b509067cE2341B11FFbc227C9B9",
+  "transactions": {
+    "SkillProfileRegistry": "0xfca7b312eddf66b78ff9ca610c01b59c1f9ef303d0b585077eaeb2d145015e28",
+    "ProjectEvidenceRegistry": "0x1346b5486bf7e757c297a0dba699009d5c51f9e9ca48118dfbd562545e13465f",
+    "SkillAttestation": "0x4944b31cda79e3b20aba11f3110ad13fae85cc9c4b42dc09e32f9c61fe071134",
+    "CredentialRegistry": "0x60de66506106a25e91f2c475896df1182686cc0ce8537231b97a06fbff7de48a"
+  }
+}

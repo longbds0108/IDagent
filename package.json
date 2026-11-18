@@ -1,0 +1,16 @@
+{
+  "name": "skillproof",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "contracts:build": "cd packages/contracts && forge build",
+    "contracts:test": "cd packages/contracts && forge test",
+    "contracts:test:fork": "cd packages/contracts && forge test --match-contract ForkTest -vv",
+    "abis": "node packages/shared/scripts/export-abis.mjs",
+    "dev": "pnpm --filter @skillproof/web dev",
+    "build": "pnpm --filter @skillproof/web build",
+    "test": "pnpm --filter @skillproof/shared test && pnpm --filter @skillproof/web test",
+    "demo:local": "bash scripts/demo-local.sh",
+    "typecheck": "pnpm -r typecheck"
+  }
+}
