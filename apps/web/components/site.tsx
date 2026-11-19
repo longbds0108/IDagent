@@ -89,15 +89,27 @@ export function SiteFooter() {
         </div>
         <div>
           <h4>CONTRACTS · BSC 56</h4>
-          <ul>
+          <ul className="divide-y divide-line/60 border-y border-line/60">
             {entries.map(([k, a]) => (
               <li key={k}>
-                <a href={explorerAddressUrl(a, publicEnv.explorerUrl)} target="_blank" rel="noreferrer">
-                  {k} ↗ <span style={{ opacity: 0.5 }}>{a.slice(0, 6)}…{a.slice(-4)}</span>
+                <a
+                  href={explorerAddressUrl(a, publicEnv.explorerUrl)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-2.5 hover:text-peer"
+                >
+                  <span className="truncate">{k}</span>
+                  <span className="whitespace-nowrap font-mono text-[11px] text-ink-3">
+                    {a.slice(0, 6)}…{a.slice(-4)} ↗
+                  </span>
                 </a>
               </li>
             ))}
           </ul>
+          <p className="mt-4 text-[12px] text-ink-3">
+            Full history: <Link href="/activity" className="text-ink-2 underline underline-offset-4 hover:text-peer">Activity</Link>.
+            Per contract: BscScan links above.
+          </p>
         </div>
       </div>
       <div className="sp-app-footer__wordmark" aria-hidden>
