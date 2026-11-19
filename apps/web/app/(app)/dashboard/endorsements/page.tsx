@@ -78,7 +78,7 @@ function Inner() {
       <Card>
         <CardHeader
           title={isRequest ? 'Attestation request' : 'Attest to a builder'}
-          description="Peer attestations require your address to hold an Agent ID. One active attestation per builder, project and skill."
+          description="Only Agent ID holders can attest."
         />
         <CardBody>
           <AttestForm key={`${initial.profile}-${initial.project}-${initial.skill}`} initial={initial} />
@@ -95,7 +95,7 @@ function Inner() {
       <Card>
         <CardHeader
           title="Received"
-          description="Attestations other Agent ID holders signed for your projects. Accept to show a signed acknowledgement, or decline to keep one out of your profile summary and reputation. Neither changes the on-chain record."
+          description="Attestations for your projects. Accept or decline. The chain record stays."
         />
         <CardBody>
           {!account?.profileId ? (

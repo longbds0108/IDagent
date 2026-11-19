@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.PUBLIC_APP_URL || 'http://localhost:3000'),
   title: { default: 'attested: evidence-backed builder profiles', template: '%s · attested' },
   description:
-    'Builder portfolios anchored to Agent ID on BNB Smart Chain. Self-reported projects, peer attestations and approved-issuer credentials, each kept separate and checkable on-chain.',
+    'Verified builder profiles on BNB Smart Chain. Built on Agent ID.',
   openGraph: { type: 'website', siteName: 'attested' },
 }
 

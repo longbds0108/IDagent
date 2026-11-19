@@ -73,7 +73,7 @@ export default async function Builders({ searchParams }: { searchParams: Promise
             on the record
           </>
         }
-        lede="Every profile here was registered by an Agent ID holder. Counts show active records only, split by who vouched for them."
+        lede="Profiles registered by Agent ID holders."
         className="!pt-8 sm:!pt-12"
       />
 

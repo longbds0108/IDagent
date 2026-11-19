@@ -10,7 +10,7 @@ import { protocolStats, type ProtocolStats } from '@/lib/reads'
 export const revalidate = 30
 
 const PRINCIPLES = [
-  ['01', 'Agent ID gated', 'The contracts call balanceOf on the official Agent ID contract before any profile, project or attestation is written'],
+  ['01', 'Agent ID gated', 'Only Agent ID holders can write to the contracts.'],
   ['02', 'Your .ai, verified', 'Bind your name.ai and the registry checks ownerOf on-chain. No reverse-lookup API, no guessing'],
   ['03', 'Evidence, hashed', 'Metadata is canonical JSON anchored by keccak256. Anyone can re-hash it and compare'],
   ['04', 'Revise, never rewrite', 'A revision is a new record. The original evidence hash stays bound to the original, forever'],
@@ -21,27 +21,27 @@ const PRINCIPLES = [
 const FAQ = [
   {
     q: 'WHAT IS attested?',
-    a: 'An on-chain builder portfolio on BNB Smart Chain. You publish projects with evidence, other Agent ID holders attest to the skills they witnessed, and approved organizations issue credentials. All three stay separate',
+    a: 'Your on-chain portfolio: projects, peer votes and credentials, kept separate.',
   },
   {
     q: 'DO I NEED AN AGENT ID?',
-    a: 'To create a profile, add projects or sign attestations, yes: the contracts check it. Visitors need nothing, and approved organization issuers do not need one either',
+    a: 'Yes. Creating a profile or attesting needs an Agent ID.',
   },
   {
     q: 'HOW DOES IT WORK WITH AN AGENTIC WALLET?',
-    a: 'Enter your Agentic Wallet address on the dashboard. For each action attested prepares calldata and a baw contract-call preview command; your own AI agent runs it and you confirm in the Binance App. attested never holds keys or sessions',
+    a: 'Connect your Agentic Wallet. Your AI agent runs each action; you approve in the Binance App.',
   },
   {
     q: 'DOES A PEER ATTESTATION PROVE MY SKILL?',
-    a: 'No. It proves that another Agent ID holder signed a public statement about your work. Readers decide how much weight to give it. attested never turns attestations into a single trust score',
+    a: 'No. It shows who signed, not that the claim is true.',
   },
   {
     q: 'WHO CAN ISSUE CREDENTIALS?',
-    a: 'Only organization wallets the protocol admin has approved. A credential shows as valid only while it is unrevoked, unexpired and its issuer is still approved',
+    a: 'Only admin-approved organizations.',
   },
   {
     q: 'CAN A RECORD BE DELETED?',
-    a: 'No. Projects can be revised or revoked and attestations and credentials can be revoked, but every change is a new on-chain event that stays inspectable',
+    a: 'No. Every change is a new event and stays visible.',
   },
 ] as const
 

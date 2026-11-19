@@ -25,7 +25,7 @@ export default function DashboardHome() {
         <CardHeader
           title="Create your builder profile"
           index="01"
-          description="Profile content is stored off-chain as canonical JSON. Its keccak256 hash and URI are written on-chain by your Agent ID wallet."
+          description="Profile text is stored off-chain. Its hash goes on-chain."
         />
         <CardBody>
           <ProfileForm />

@@ -2,10 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { getAddress, isAddress, type Address } from 'viem'
-import { useAccount, useDisconnect } from 'wagmi'
 import { useQuery } from '@tanstack/react-query'
-
-export type IdentityMode = 'wallet' | 'agent'
 
 export interface AccountInfo {
   address: Address
@@ -17,39 +14,30 @@ export interface AccountInfo {
 }
 
 interface IdentityCtx {
-  mode: IdentityMode | null
+  /** Only Binance Agent ID wallets (Agentic Wallets) can connect. */
   address: Address | null
   account: AccountInfo | null
   accountLoading: boolean
   accountError: string | null
   setAgentAddress: (a: string | null) => void
   agentAddress: Address | null
-  preferAgent: (v: boolean) => void
-  signOut: () => void
+  disconnect: () => void
 }
 
 const Ctx = createContext<IdentityCtx | null>(null)
-const KEY = 'skillproof.agentWallet'
+const KEY = 'attested.agentWallet'
 
 /**
- * "Acting identity" for the dashboard. Either a connected browser wallet (signs itself) or an
- * Agentic Wallet address the user typed in (read-only here; writes are prepared as calldata
- * for the user's own AI agent). The agent address is a per-browser convenience in
- * localStorage — it is not a login, grants nothing, and is never sent anywhere but public RPC reads.
+ * The connected identity is one Binance Agent ID wallet address. It is remembered in this browser only
+ * (not a login, no keys, no sessions) and is checked against the chain every time it loads.
  */
 export function IdentityProvider({ children }: { children: ReactNode }) {
-  const { address: walletAddress, isConnected } = useAccount()
-  const { disconnect } = useDisconnect()
   const [agentAddress, setAgent] = useState<Address | null>(null)
-  const [agentPreferred, setAgentPreferred] = useState(false)
 
   useEffect(() => {
     try {
       const v = localStorage.getItem(KEY)
-      if (v && isAddress(v)) {
-        setAgent(getAddress(v))
-        setAgentPreferred(true)
-      }
+      if (v && isAddress(v)) setAgent(getAddress(v))
     } catch {
       /* storage unavailable */
     }
@@ -58,7 +46,6 @@ export function IdentityProvider({ children }: { children: ReactNode }) {
   const setAgentAddress = useCallback((a: string | null) => {
     const v = a && isAddress(a) ? getAddress(a) : null
     setAgent(v)
-    setAgentPreferred(!!v)
     try {
       if (v) localStorage.setItem(KEY, v)
       else localStorage.removeItem(KEY)
@@ -67,37 +54,33 @@ export function IdentityProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const mode: IdentityMode | null =
-    agentPreferred && agentAddress ? 'agent' : isConnected && walletAddress ? 'wallet' : agentAddress ? 'agent' : null
-  const address = mode === 'agent' ? agentAddress : mode === 'wallet' ? (walletAddress ?? null) : null
-
   const q = useQuery({
-    queryKey: ['account', address],
-    enabled: !!address,
+    queryKey: ['account', agentAddress],
+    enabled: !!agentAddress,
     queryFn: async () => {
-      const r = await fetch(`/api/account/${address}`, { cache: 'no-store' })
+      const r = await fetch(`/api/account/${agentAddress}`, { cache: 'no-store' })
       const j = await r.json()
-      if (!r.ok) throw new Error(j.error ?? 'Failed to load account')
+      if (!r.ok) throw new Error(j.error ?? 'Could not load account')
       return j as AccountInfo
     },
   })
 
+  // A remembered address that no longer holds an Agent ID is dropped.
+  useEffect(() => {
+    if (agentAddress && q.data && !q.data.agentIdHeld) setAgentAddress(null)
+  }, [agentAddress, q.data, setAgentAddress])
+
   const value = useMemo<IdentityCtx>(
     () => ({
-      mode,
-      address,
+      address: agentAddress,
       account: q.data ?? null,
       accountLoading: q.isLoading,
       accountError: q.error ? (q.error as Error).message : null,
       setAgentAddress,
       agentAddress,
-      preferAgent: setAgentPreferred,
-      signOut: () => {
-        if (mode === 'wallet') disconnect()
-        else setAgentAddress(null)
-      },
+      disconnect: () => setAgentAddress(null),
     }),
-    [mode, address, q.data, q.isLoading, q.error, setAgentAddress, agentAddress, disconnect],
+    [agentAddress, q.data, q.isLoading, q.error, setAgentAddress],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

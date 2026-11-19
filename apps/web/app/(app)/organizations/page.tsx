@@ -35,7 +35,7 @@ export default async function Organizations() {
             issue credentials
           </>
         }
-        lede="Organizations are approved by the protocol admin before they can issue. A credential shows as valid only while it is unrevoked, unexpired and its issuer is still on this list."
+        lede="Only admin-approved organizations can issue credentials."
         className="!pt-8 sm:!pt-12"
       />
       <StatStrip

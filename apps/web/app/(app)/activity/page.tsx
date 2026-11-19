@@ -86,7 +86,7 @@ export default async function Activity({
             that happened
           </>
         }
-        lede="Every record stores the block it was written and closed in, so this feed is rebuilt from the contracts themselves, with no separate database to drift. Each row links to its transaction."
+        lede="Every contract event, newest first."
         className="!pt-8 sm:!pt-12"
       />
       <StatStrip

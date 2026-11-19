@@ -29,7 +29,7 @@ export default function ProjectsPage() {
       <Card>
         <CardHeader
           title="Project evidence"
-          description="Records are never edited in place: a revision creates a new record, and the old one stays visible with its original evidence hash."
+          description="Edits create a new record. Old versions stay visible."
           action={
             <Button size="sm" variant={adding ? 'ghost' : 'primary'} onClick={() => setAdding((v) => !v)}>
               {adding ? 'Close' : '+ Add project'}

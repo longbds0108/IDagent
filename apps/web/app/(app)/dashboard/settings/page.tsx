@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { useAccount, useDisconnect } from 'wagmi'
 import { PreferenceSigner, usePreferences } from '@/components/dashboard/pref-signer'
 import { useMyProfile } from '@/components/dashboard/hooks'
 import { BindLabel } from '@/components/dashboard/profile-form'
@@ -10,7 +9,7 @@ import { profileHref } from '@/components/builder-card'
 import { Card, CardBody, CardHeader, Notice } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useIdentity } from '@/components/wallet/identity'
-import { formatDate } from '@/lib/utils'
+import { formatDate, shortAddress as shortAddr } from '@/lib/utils'
 
 type Toggles = { reputationOptIn: boolean; hideFromExplore: boolean; hideSocialLinks: boolean; hideAvatar: boolean }
 const TOGGLES: [keyof Toggles, string, string][] = [
@@ -30,9 +29,7 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
 }
 
 export default function SettingsPage() {
-  const { address, mode, account, agentAddress, setAgentAddress } = useIdentity()
-  const { isConnected, connector } = useAccount()
-  const { disconnect } = useDisconnect()
+  const { address, account, agentAddress, setAgentAddress, disconnect } = useIdentity()
   const prefs = usePreferences(address)
   const bundle = useMyProfile()
   const [t, setT] = useState<Toggles>({ reputationOptIn: false, hideFromExplore: false, hideSocialLinks: false, hideAvatar: false })
@@ -49,7 +46,7 @@ export default function SettingsPage() {
           <CardHeader
             index="01"
             title="Privacy & presentation"
-            description="These preferences are signed by your address and change only how attested presents you. On-chain records and their metadata stay public and verifiable."
+            description="Signed by your wallet. Only changes how your profile looks."
           />
           <CardBody className="space-y-1">
             {TOGGLES.map(([key, title, help]) => (
@@ -121,31 +118,17 @@ export default function SettingsPage() {
         </Card>
 
         <Card>
-          <CardHeader index="04" title="Connections" />
+          <CardHeader index="04" title="Connection" />
           <CardBody className="space-y-4 text-[13.5px] text-ink-2">
             <p>
-              Acting through{' '}
-              <span className="font-mono text-ink">{mode === 'agent' ? 'Agentic Wallet (via your AI agent)' : `${connector?.name ?? 'browser wallet'}`}</span>.
+              Connected as <span className="font-mono text-ink">{agentAddress ? shortAddr(agentAddress) : '—'}</span>
             </p>
-            {agentAddress ? (
-              <p>
-                This browser remembers the Agentic Wallet address <span className="font-mono text-ink">{agentAddress.slice(0, 8)}…</span> in local
-                storage only. It is not a login and grants nothing.
-              </p>
-            ) : null}
             <div className="flex flex-wrap gap-2">
-              {agentAddress ? (
-                <Button size="sm" variant="secondary" onClick={() => setAgentAddress(null)}>
-                  Forget agent address
-                </Button>
-              ) : null}
-              {isConnected ? (
-                <Button size="sm" variant="secondary" onClick={() => disconnect()}>
-                  Disconnect wallet
-                </Button>
-              ) : null}
+              <Button size="sm" variant="secondary" onClick={() => disconnect()}>
+                Disconnect
+              </Button>
             </div>
-            <p className="text-[12.5px] text-ink-3">attested never stores sessions, keys, QR codes or pairing codes on its servers.</p>
+            <p className="text-[12.5px] text-ink-3">We never store keys, QR codes, pairing codes or sessions.</p>
           </CardBody>
         </Card>
       </div>

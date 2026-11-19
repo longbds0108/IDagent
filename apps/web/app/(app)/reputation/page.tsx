@@ -160,7 +160,7 @@ export default async function ReputationPage({ searchParams }: { searchParams: P
             can audit
           </>
         }
-        lede="Reputation on attested is opt-in, published as a formula and split by source. Self-reported evidence, peer attestations and issuer credentials are scored separately and never merged into one number."
+        lede="Opt-in scores. Each part is shown on its own."
         className="!pt-8 sm:!pt-12"
       />
       <section className="mt-12 grid gap-4 lg:grid-cols-3">
@@ -180,7 +180,7 @@ export default async function ReputationPage({ searchParams }: { searchParams: P
         <SectionHead
           kicker="// OPTED-IN BUILDERS"
           title="Scoreboard"
-          note="Only builders who signed an opt-in in Settings appear here. Sorted by peer component; click a row for the full breakdown."
+          note="Builders who opted in appear here."
           action={
             <Link href="/dashboard/settings" className={buttonClass('secondary', 'sm')}>
               Opt in

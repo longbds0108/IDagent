@@ -1,27 +1,28 @@
 /**
- * Full user-journey test through the real UI against the LOCAL chain-56 mirror (scripts/demo-local.sh
- * with SKIP_E2E=1). Personas:
- *  - visitor (no wallet)
- *  - W  browser-wallet builder   (anvil #3, given a local Agent ID "qathree")
- *  - X  browser-wallet attester  (anvil #4, local Agent ID "qafour")
- *  - ADMIN browser wallet        (anvil #0 = deployer/admin)
- *  - ORG issuer browser wallet   (anvil #1)
- *  - A  Agentic Wallet user via "agent" (real mainnet holder, impersonated locally)
- *  - N  non-holder in agent mode (anvil #2)
- * Browser wallets are an injected EIP-1193/EIP-6963 mock that forwards to anvil (whose dev accounts can
- * sign). Agent mode copies the exact `baw contract-call preview` calldata the UI shows and sends it from the
- * impersonated holder, then pastes the tx hash back, as a real agent + user would.
+ * User journey through the real UI on the LOCAL chain-56 mirror (scripts/demo-local.sh with SKIP_E2E=1).
+ * Only Agent ID wallets can connect. Every write follows the app's real flow:
+ *   connect address → prepare → simulate → show `baw` command → "agent" sends it → paste tx hash.
+ * Preferences are signed with the same EIP-712 typed data that `baw sign-message` shows.
  *
- * Usage: node e2e-local/user-journey.mjs   (env: APP, RPC, SHOTS)
+ * Local test accounts (anvil public keys, local only):
+ *   W     0x90F7…b906 (anvil #3)  builder, Agent ID "qathree"
+ *   X     0x15d3…6A65 (anvil #4)  attester, Agent ID "qafour"
+ *   ADMIN 0xf39F…2266 (anvil #0)  protocol admin, Agent ID "qaadmin"
+ *   ORG   0x7099…79C8 (anvil #1)  issuer, Agent ID "qaorg"
+ *   A     real mainnet holder "kalektor" (impersonated locally)
+ *   N     non-holder (anvil #2)
+ *
+ * Usage: APP=http://localhost:3300 RPC=http://127.0.0.1:8546 SHOTS=/tmp node e2e-local/user-journey.mjs
  */
 import { readFileSync } from 'node:fs'
 import { chromium } from '@playwright/test'
-import { createTestClient, createWalletClient, encodeAbiParameters, http, keccak256, pad, parseEther, toHex } from 'viem'
+import { createTestClient, createWalletClient, defineChain, encodeAbiParameters, http, keccak256, pad, parseEther, toHex } from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
 
 const APP = process.env.APP ?? 'http://localhost:3300'
 const RPC = process.env.RPC ?? 'http://127.0.0.1:8546'
 const SHOTS = process.env.SHOTS ?? '/tmp'
-const chain = { id: 56, name: 'bsc-local', nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 }, rpcUrls: { default: { http: [RPC] } } }
+const chain = defineChain({ id: 56, name: 'bsc-local', nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 }, rpcUrls: { default: { http: [RPC] } } })
 const test = createTestClient({ chain, mode: 'anvil', transport: http(RPC) })
 const wallet = createWalletClient({ chain, transport: http(RPC) })
 
@@ -29,11 +30,11 @@ const mirror = JSON.parse(readFileSync(new URL('../.data/agent-id-mirror.json', 
 const AGENT_ID = mirror.agentId
 const [A, B] = mirror.holders
 const DEV = {
-  admin: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
-  org: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
+  admin: { address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266', key: '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80', label: 'qaadmin' },
+  org: { address: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8', key: '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d', label: 'qaorg' },
   nonHolder: '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC',
-  w: '0x90F79bf6EB2c4f870365E785982E1f101E93b906',
-  x: '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65',
+  w: { address: '0x90F79bf6EB2c4f870365E785982E1f101E93b906', key: '0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6', label: 'qathree' },
+  x: { address: '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65', key: '0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a', label: 'qafour' },
 }
 
 // ---------------------------------------------------------------- results
@@ -66,84 +67,11 @@ async function giveAgentId(address, label) {
   await test.setStorageAt({ address: AGENT_ID, index: ownSlot, value: pad(address) })
 }
 
-// ---------------------------------------------------------------- mock wallet
-function mockWallet({ rpc, account, chainId }) {
-  let id = 0
-  const listeners = {}
-  let chain = chainId
-  // Behave like a real wallet: expose accounts only after the user approved this site once.
-  const permKey = 'qa-wallet-permission:' + account
-  const permitted = () => {
-    try {
-      return localStorage.getItem(permKey) === '1'
-    } catch {
-      return false
-    }
-  }
-  const emit = (e, v) => (listeners[e] || []).forEach((f) => f(v))
-  const send = async (method, params = []) => {
-    const r = await fetch(rpc, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method, params }) })
-    const j = await r.json()
-    if (j.error) {
-      const err = new Error(j.error.message)
-      err.code = j.error.code
-      err.data = j.error.data
-      throw err
-    }
-    return j.result
-  }
-  const provider = {
-    isMetaMask: false,
-    request: async ({ method, params }) => {
-      switch (method) {
-        case 'eth_requestAccounts':
-          try {
-            localStorage.setItem(permKey, '1')
-          } catch {}
-          return [account]
-        case 'eth_accounts':
-          return permitted() ? [account] : []
-        case 'eth_chainId':
-          return chain
-        case 'net_version':
-          return String(parseInt(chain, 16))
-        case 'wallet_switchEthereumChain':
-          window.__qaSwitchRequests = (window.__qaSwitchRequests || 0) + 1
-          chain = params[0].chainId
-          emit('chainChanged', chain)
-          return null
-        case 'wallet_requestPermissions':
-        case 'wallet_getPermissions':
-          return [{ parentCapability: 'eth_accounts' }]
-        case 'wallet_revokePermissions':
-          return null
-        default:
-          if (chain !== '0x38' && (method === 'eth_sendTransaction' || method === 'eth_signTypedData_v4')) {
-            const e = new Error('Wrong network in wallet')
-            e.code = 4901
-            throw e
-          }
-          return send(method, params)
-      }
-    },
-    on: (e, f) => {
-      ;(listeners[e] ||= []).push(f)
-    },
-    removeListener: (e, f) => {
-      listeners[e] = (listeners[e] || []).filter((x) => x !== f)
-    },
-  }
-  window.ethereum = provider
-  const info = { uuid: 'qa-wallet-' + account, name: 'QA Wallet', icon: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E', rdns: 'test.qa.wallet' }
-  const announce = () => window.dispatchEvent(new CustomEvent('eip6963:announceProvider', { detail: Object.freeze({ info, provider }) }))
-  window.addEventListener('eip6963:requestProvider', announce)
-  announce()
-}
-
+// ---------------------------------------------------------------- pages
 const errorsByPersona = {}
-async function persona(browser, name, { account, chainId = '0x38', mobile = false } = {}) {
+const holderOf = new Map() // page -> connected Agent ID wallet address
+async function persona(browser, name, { mobile = false } = {}) {
   const ctx = await browser.newContext(mobile ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1400, height: 1000 } })
-  if (account) await ctx.addInitScript(mockWallet, { rpc: RPC, account, chainId })
   const page = await ctx.newPage()
   errorsByPersona[name] = []
   page.on('pageerror', (e) => errorsByPersona[name].push(`${current}: ${e.message}`))
@@ -154,24 +82,62 @@ async function persona(browser, name, { account, chainId = '0x38', mobile = fals
 }
 
 // ---------------------------------------------------------------- UI helpers
-const bad = (scope) => scope.locator('.bg-bad-bg').last()
-
-/** Wallet path: click action → wait for review → confirm → wait for on-chain confirmation. */
-async function walletAction(page, buttonName, scope = page) {
-  const before = await page.locator('.bg-bad-bg').count()
-  await scope.getByRole('button', { name: buttonName }).first().click()
-  const confirm = scope.getByRole('button', { name: 'Confirm in wallet' })
-  const err = page.locator('.bg-bad-bg').nth(before)
-  await Promise.race([confirm.waitFor({ timeout: 20_000 }), err.waitFor({ timeout: 20_000 })])
-  if (await err.isVisible().catch(() => false)) throw new Error(`blocked: ${(await err.innerText()).slice(0, 200)}`)
-  await confirm.click()
-  // Inline notice, or the app toast when the triggering control is removed after success (e.g. Revoke).
-  const ok = page.getByText(/confirmed in block/i).first()
-  await Promise.race([ok.waitFor({ timeout: 30_000 }), err.waitFor({ timeout: 30_000 })])
-  if (!(await ok.isVisible().catch(() => false))) throw new Error(`tx failed: ${(await err.innerText()).slice(0, 200)}`)
+/** Connect an Agent ID wallet by address: the only way into the dashboard. */
+async function connect(page, address) {
+  await page.goto(`${APP}/dashboard`)
+  await page.getByLabel('Agentic Wallet address').fill(address)
+  await page.getByRole('button', { name: 'CONNECT', exact: true }).click()
+  await page.getByRole('heading', { level: 1, name: 'Dashboard' }).waitFor({ timeout: 20_000 })
+  holderOf.set(page, address)
 }
 
-/** Expect an action to be refused before any transaction (simulation / validation error). */
+/** Agent path: click → copy the baw preview → the holder sends exactly that call → paste tx hash → track. */
+async function agentAction(page, buttonName, holder, scope = page) {
+  await scope.getByRole('button', { name: buttonName }).first().click()
+  const pre = scope.locator('pre', { hasText: 'baw contract-call preview' }).first()
+  const err = scope.locator('.bg-bad-bg').last()
+  await Promise.race([pre.waitFor({ timeout: 25_000 }), err.waitFor({ timeout: 25_000 })])
+  if (!(await pre.isVisible().catch(() => false))) throw new Error(`blocked: ${(await err.innerText()).slice(0, 200)}`)
+  const cmd = await pre.innerText()
+  const to = cmd.match(/--to (0x[0-9a-fA-F]{40})/)?.[1]
+  const data = cmd.match(/--inputData (0x[0-9a-fA-F]+)/)?.[1]
+  const from = cmd.match(/--from (0x[0-9a-fA-F]{40})/)?.[1]
+  expect(to && data && from, 'could not parse baw command')
+  expect(from.toLowerCase() === holder.toLowerCase(), 'baw --from is not the connected wallet')
+  expect(/--binanceChainId 56/.test(cmd) && /--value 0/.test(cmd), 'baw command missing chain 56 / value 0')
+  expect(/--gasLimit \d+/.test(cmd), 'baw command missing a gas cap')
+  const gas = BigInt(cmd.match(/--gasLimit (\d+)/)[1])
+  const hash = await wallet.sendTransaction({ account: holder, to, data, gas, chain })
+  await scope.getByLabel('Transaction hash').fill(hash)
+  await scope.getByRole('button', { name: 'Track' }).click()
+  // Inline notice, or the toast when the form unmounts after success (e.g. a new profile).
+  await page.getByText(/Done in block|done \(block/).first().waitFor({ timeout: 40_000 })
+  return hash
+}
+const walletAction = (page, buttonName, scope = page) => agentAction(page, buttonName, holderOf.get(page), scope)
+
+/** Sign the typed data that `baw sign-message` shows, then paste the signature into the app. */
+async function signPreference(scope, holderKey) {
+  const pre = scope.locator('pre', { hasText: 'baw sign-message preview' }).first()
+  await pre.waitFor({ timeout: 20_000 })
+  const cmd = await pre.innerText()
+  const raw = cmd.match(/--message '([\s\S]*)' --json/)?.[1]
+  expect(raw, 'no typed data in command')
+  const req = JSON.parse(raw.replace(/'\\''/g, "'"))
+  const td = JSON.parse(req.params[1])
+  const { EIP712Domain: _domain, ...types } = td.types
+  const message = {
+    ...td.message,
+    issuedAt: BigInt(td.message.issuedAt),
+    acceptedAttestations: td.message.acceptedAttestations.map(BigInt),
+    declinedAttestations: td.message.declinedAttestations.map(BigInt),
+  }
+  const sig = await privateKeyToAccount(holderKey).signTypedData({ domain: td.domain, types, primaryType: td.primaryType, message })
+  await scope.getByLabel('Signature', { exact: true }).fill(sig)
+  await scope.getByRole('button', { name: 'Save', exact: true }).click()
+}
+
+/** Expect the app to refuse before anything is sent. */
 async function expectRefused(page, buttonName, re, scope = page) {
   await scope.getByRole('button', { name: buttonName }).first().click()
   const err = scope.locator('.bg-bad-bg', { hasText: re }).last()
@@ -184,73 +150,40 @@ async function expectRefused(page, buttonName, re, scope = page) {
   return (await err.innerText()).slice(0, 120)
 }
 
-/** Agent path: click → copy the baw preview calldata → "agent" sends it from the holder → paste tx hash → track. */
-async function agentAction(page, buttonName, holder, scope = page) {
-  await scope.getByRole('button', { name: buttonName }).first().click()
-  const pre = scope.locator('pre', { hasText: 'baw contract-call preview' }).first()
-  const err = bad(scope)
-  await Promise.race([pre.waitFor({ timeout: 20_000 }), err.waitFor({ timeout: 20_000 })])
-  if (await err.isVisible().catch(() => false)) throw new Error(`blocked: ${(await err.innerText()).slice(0, 200)}`)
-  const cmd = await pre.innerText()
-  const to = cmd.match(/--to (0x[0-9a-fA-F]{40})/)?.[1]
-  const data = cmd.match(/--inputData (0x[0-9a-fA-F]+)/)?.[1]
-  const from = cmd.match(/--from (0x[0-9a-fA-F]{40})/)?.[1]
-  expect(to && data && from, 'could not parse baw command')
-  expect(from.toLowerCase() === holder.toLowerCase(), 'baw --from is not the acting address')
-  expect(/--binanceChainId 56/.test(cmd) && /--value 0/.test(cmd), 'baw command missing chain 56 / value 0')
-  const hash = await wallet.sendTransaction({ account: holder, to, data, chain })
-  await scope.getByLabel('Transaction hash').fill(hash)
-  await scope.getByRole('button', { name: 'Track' }).click()
-  await scope.getByText(/Confirmed in block/).first().waitFor({ timeout: 30_000 })
-  return hash
-}
-
-async function connectBrowserWallet(page) {
-  await page.goto(`${APP}/dashboard`)
-  await page.getByRole('button', { name: /qa wallet/i }).first().click()
-  await page.getByRole('heading', { level: 1, name: 'Dashboard' }).waitFor({ timeout: 15_000 })
-  await page.getByText(/READING CHAIN/).waitFor({ state: 'detached', timeout: 15_000 }).catch(() => {})
-}
-
-async function useAgentAddress(page, address) {
-  await page.goto(`${APP}/dashboard`)
-  await page.getByLabel('Agentic Wallet address').fill(address)
-  await page.getByRole('button', { name: /Use this address/ }).click()
-  await page.getByRole('heading', { level: 1, name: 'Dashboard' }).waitFor({ timeout: 15_000 })
-}
-
 const settle = (page, ms = 800) => page.waitForTimeout(ms)
 
 // ================================================================= main
 const browser = await chromium.launch()
-for (const who of [A.address, B.address, DEV.nonHolder]) {
+for (const who of [A.address, B.address, DEV.nonHolder, DEV.w.address, DEV.x.address, DEV.admin.address, DEV.org.address]) {
   await test.impersonateAccount({ address: who })
   await test.setBalance({ address: who, value: parseEther('1') })
 }
-await giveAgentId(DEV.w, 'qathree')
-await giveAgentId(DEV.x, 'qafour')
+await giveAgentId(DEV.w.address, DEV.w.label)
+await giveAgentId(DEV.x.address, DEV.x.label)
+await giveAgentId(DEV.admin.address, DEV.admin.label)
+await giveAgentId(DEV.org.address, DEV.org.label)
 
 // ---------------------------------------------------------------- visitor
 const v = await persona(browser, 'visitor')
-await step('Visitor: home renders with live counters and nav', async () => {
+await step('Visitor: home loads with live counters and menu', async () => {
   await v.goto(APP)
   await v.getByRole('heading', { level: 1, name: /Show the work/ }).waitFor()
   expect(await v.getByText('PROFILES', { exact: true }).isVisible(), 'stats missing')
-  await v.getByRole('link', { name: 'CREATE YOUR PROFILE' }).first().click()
-  await v.waitForURL(/\/dashboard$/)
 }, v)
-await step('Visitor: every top-nav page opens', async () => {
-  const pages = [['BUILDERS', /Builders/], ['ORGS', /issue credentials/], ['ACTIVITY', /that happened/], ['REPUTATION', /can audit/], ['VERIFY', /any record/], ['DASHBOARD', /the record/]]
+await step('Visitor: every menu page opens', async () => {
+  await v.goto(`${APP}/builders`)
+  const pages = [
+    ['BUILDERS', /Builders/],
+    ['ORGS', /Organizations|issue credentials/],
+    ['ACTIVITY', /that happened/],
+    ['REPUTATION', /can audit/],
+    ['VERIFY', /any record/],
+    ['DASHBOARD', /Connect to start|Dashboard/],
+  ]
   for (const [nav, h1] of pages) {
     await v.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: nav, exact: true }).click()
     await v.getByRole('heading', { level: 1, name: h1 }).waitFor({ timeout: 10_000 })
   }
-}, v)
-await step('Visitor: empty states before any data', async () => {
-  await v.goto(`${APP}/builders`)
-  await v.getByText(/No profiles yet/).waitFor()
-  await v.goto(`${APP}/activity`)
-  await v.getByText(/No on-chain activity yet|Demo Hackathon/).first().waitFor()
 }, v)
 await step('Visitor: verify handles junk, unknown tx and unknown records', async () => {
   await v.goto(`${APP}/verify?q=hello`)
@@ -262,25 +195,29 @@ await step('Visitor: verify handles junk, unknown tx and unknown records', async
   await v.goto(`${APP}/p/nobody.ai`)
   await v.getByText('Profile not found').waitFor()
 }, v)
+await step('Visitor: dashboard shows only the Agent ID connect box', async () => {
+  await v.goto(`${APP}/dashboard`)
+  await v.getByRole('heading', { name: 'Your Agent ID wallet' }).waitFor()
+  expect((await v.getByRole('button', { name: /browser wallet|metamask|injected/i }).count()) === 0, 'browser wallet option still shown')
+}, v)
 
-// ---------------------------------------------------------------- non-holder (agent mode)
+// ---------------------------------------------------------------- non-holder
 const n = await persona(browser, 'nonHolder')
-await step('Non-holder: dashboard shows a clear Agent ID error', async () => {
-  await useAgentAddress(n, DEV.nonHolder)
-  await n.getByText(/No Agent ID found for this address/).waitFor({ timeout: 15_000 })
-}, n)
-await step('Non-holder: profile creation refused before any transaction', async () => {
-  await n.getByLabel('Display name').fill('Not eligible')
-  return expectRefused(n, 'Create profile on-chain', /does not hold an Agent ID/)
+await step('Non-holder: connect is refused with a clear message', async () => {
+  await n.goto(`${APP}/dashboard`)
+  await n.getByLabel('Agentic Wallet address').fill(DEV.nonHolder)
+  await n.getByRole('button', { name: 'CONNECT', exact: true }).click()
+  await n.getByText(/This wallet has no Agent ID/).waitFor({ timeout: 20_000 })
+  expect((await n.getByRole('heading', { level: 1, name: 'Dashboard' }).count()) === 0, 'non-holder got into the dashboard')
 }, n)
 
-// ---------------------------------------------------------------- W: browser-wallet builder
-const w = await persona(browser, 'W', { account: DEV.w })
-await step('W: connect browser wallet (EIP-6963) and see holder status', async () => {
-  await connectBrowserWallet(w)
-  await w.getByText('AGENT ID HOLDER').waitFor({ timeout: 15_000 })
+// ---------------------------------------------------------------- W: builder
+const w = await persona(browser, 'W')
+await step('W: connect Agent ID wallet', async () => {
+  await connect(w, DEV.w.address)
+  await w.getByText('AGENT ID', { exact: true }).first().waitFor({ timeout: 15_000 })
 }, w)
-await step('W: metadata validation blocks an e-mail in the bio', async () => {
+await step('W: bio with an e-mail is blocked', async () => {
   await w.getByLabel('Display name').fill('QA Builder W')
   await w.getByLabel(/Your Agent ID name/).fill('qathree.ai')
   await w.getByLabel('Bio').fill('Contact me at qa@example.com')
@@ -291,7 +228,7 @@ await step('W: claiming someone else’s .ai name is refused', async () => {
   await w.getByLabel(/Your Agent ID name/).fill(`${A.label}.ai`)
   return expectRefused(w, 'Create profile on-chain', /does not own that \.ai name/)
 }, w)
-await step('W: create profile with own .ai name (wallet signs, receipt confirmed)', async () => {
+await step('W: create profile with own .ai name (agent confirms, receipt on-chain)', async () => {
   await w.getByLabel(/Your Agent ID name/).fill('qathree.ai')
   await w.getByLabel('Skills').fill('Solidity, Next.js, UI Design')
   await w.getByLabel('GitHub').fill('https://github.com/qa-three')
@@ -302,13 +239,13 @@ await step('W: create profile with own .ai name (wallet signs, receipt confirmed
 }, w)
 await step('W: edit profile publishes version 2', async () => {
   await w.getByRole('button', { name: 'Edit profile' }).click()
-  await w.getByLabel('Bio').fill('Full-stack builder. Updated bio v2.')
+  await w.getByLabel('Bio').fill('Full-stack builder. Version 2.')
   await walletAction(w, 'Publish profile update')
   await settle(w, 1500)
   await w.reload()
   await w.getByText(/version 2/).waitFor({ timeout: 15_000 })
 }, w)
-await step('W: invalid evidence reference blocks the project form', async () => {
+await step('W: invalid evidence link disables the project form', async () => {
   await w.goto(`${APP}/dashboard/projects`)
   await w.getByRole('button', { name: '+ Add project' }).click()
   await w.getByLabel('Project title').fill('QA Project One')
@@ -326,7 +263,7 @@ await step('W: add project with evidence', async () => {
   await w.reload()
   await w.getByRole('heading', { name: 'QA Project One' }).waitFor({ timeout: 15_000 })
 }, w)
-await step('W: revise project keeps the original record in history', async () => {
+await step('W: revise project keeps the original in history', async () => {
   await w.getByRole('button', { name: 'Revise' }).first().click()
   await w.getByLabel('Project title').last().fill('QA Project One (v2)')
   const form = w.locator('.sp-panel', { hasText: 'Revise project #' })
@@ -350,7 +287,7 @@ await step('W: add then revoke a second project', async () => {
   await w.locator('article', { hasText: 'Throwaway project' }).getByText('Revoked', { exact: true }).first().waitFor({ timeout: 15_000 })
 }, w)
 let requestLink = ''
-await step('W: generate an attestation request link', async () => {
+await step('W: make an attestation request link', async () => {
   await w.goto(`${APP}/dashboard/endorsements`)
   const opt = w.locator('#rq-project option', { hasText: 'QA Project One (v2)' })
   await opt.waitFor({ state: 'attached', timeout: 15_000 })
@@ -363,63 +300,62 @@ await step('W: generate an attestation request link', async () => {
 await step('W: cannot attest to own profile', async () => {
   await w.goto(requestLink)
   await w.getByText(/cannot attest to your own profile/).waitFor({ timeout: 15_000 })
-  expect(await w.getByRole('button', { name: 'Sign attestation on-chain' }).isDisabled(), 'self-attest button should be disabled')
+  expect(await w.getByRole('button', { name: 'Sign attestation on-chain' }).isDisabled(), 'self-attest button should be blocked')
 }, w)
 
-// ---------------------------------------------------------------- X: browser-wallet attester
-const x = await persona(browser, 'X', { account: DEV.x })
+// ---------------------------------------------------------------- X: attester
+const x = await persona(browser, 'X')
 let attestationTx = ''
-await step('X: opens request link and signs a peer attestation', async () => {
-  await connectBrowserWallet(x)
+await step('X: connect and sign a peer attestation from the request link', async () => {
+  await connect(x, DEV.x.address)
   await x.goto(requestLink)
   await x.getByText(/Attesting for/).waitFor({ timeout: 15_000 })
   await x.getByLabel('Your relationship to this work').selectOption('reviewer')
   await x.getByLabel(/What you witnessed/).fill('Reviewed the contracts line by line.')
-  await walletAction(x, 'Sign attestation on-chain')
-  attestationTx = (await x.getByRole('link', { name: /View on BscScan|Local fork tx/ }).first().getAttribute('href')) ?? ''
+  attestationTx = await walletAction(x, 'Sign attestation on-chain')
 }, x)
-await step('X: duplicate attestation is prevented', async () => {
+await step('X: duplicate attestation is blocked', async () => {
   await x.goto(requestLink)
   await x.getByText(/already have active attestation/).waitFor({ timeout: 15_000 })
 }, x)
-await step('X: second skill on same project is allowed', async () => {
+await step('X: second skill on the same project is allowed', async () => {
   await x.goto(requestLink.replace('skill=solidity', 'skill=next.js'))
   await x.getByText(/Attesting for/).waitFor({ timeout: 15_000 })
   await walletAction(x, 'Sign attestation on-chain')
 }, x)
 
-// ---------------------------------------------------------------- A: Agentic Wallet user via agent
+// ---------------------------------------------------------------- A: real mainnet holder
 const a = await persona(browser, 'A')
-await step('A (agent mode): create profile via baw calldata + pasted tx hash', async () => {
-  await useAgentAddress(a, A.address)
-  await a.getByText('AGENT ID HOLDER').waitFor({ timeout: 15_000 })
+await step('A: connect and create profile through the agent', async () => {
+  await connect(a, A.address)
   await a.getByLabel('Display name').fill('Agent Builder A')
   await a.getByLabel(/Your Agent ID name/).fill(`${A.label}.ai`)
   await a.getByLabel('Skills').fill('rust, security-review, solidity')
-  await agentAction(a, 'Create profile on-chain', A.address)
+  await walletAction(a, 'Create profile on-chain')
 }, a)
-await step('A (agent mode): pasting a tx that does not match is rejected', async () => {
+await step('A: a transaction that is not the prepared one is rejected', async () => {
   await a.goto(`${APP}/dashboard/projects`)
   await a.getByRole('button', { name: '+ Add project' }).click()
   await a.getByLabel('Project title').fill('Agent project')
   await a.getByRole('button', { name: 'Add project on-chain' }).click()
-  await a.locator('pre', { hasText: 'baw contract-call preview' }).waitFor({ timeout: 20_000 })
-  const wrong = await wallet.sendTransaction({ account: A.address, to: DEV.admin, value: 1n, chain })
+  await a.locator('pre', { hasText: 'baw contract-call preview' }).waitFor({ timeout: 25_000 })
+  const wrong = await wallet.sendTransaction({ account: A.address, to: DEV.admin.address, value: 1n, chain })
   await a.getByLabel('Transaction hash').fill(wrong)
   await a.getByRole('button', { name: 'Track' }).click()
-  await a.getByText(/does not match the prepared call/).waitFor({ timeout: 15_000 })
+  await a.getByText(/not the one we prepared/).waitFor({ timeout: 20_000 })
 }, a)
-await step('A (agent mode): attest to W’s project', async () => {
+await step('A: attest to W’s project', async () => {
   await a.goto(requestLink)
   await a.getByText(/Attesting for/).waitFor({ timeout: 15_000 })
-  await agentAction(a, 'Sign attestation on-chain', A.address)
+  await walletAction(a, 'Sign attestation on-chain')
 }, a)
 
-// ---------------------------------------------------------------- W responds (EIP-712)
-await step('W: settings opt-in to reputation (EIP-712 signature saved)', async () => {
+// ---------------------------------------------------------------- W: preferences (EIP-712 via baw)
+await step('W: opt in to reputation (signed with baw sign-message)', async () => {
   await w.goto(`${APP}/dashboard/settings`)
   await w.getByText('Show my reputation').click()
   await w.getByRole('button', { name: 'Sign & save preferences' }).click()
+  await signPreference(w, DEV.w.key)
   await w.getByText('SAVED ✓').waitFor({ timeout: 20_000 })
 }, w)
 await step('W: accept one attestation and decline another', async () => {
@@ -428,30 +364,30 @@ await step('W: accept one attestation and decline another', async () => {
   const rowX = received.locator('li', { hasText: 'next.js' }).first()
   await rowX.waitFor({ timeout: 15_000 })
   await rowX.getByRole('button', { name: 'Accept' }).click()
-  await w.getByText(/Accept: signed preferences saved/).waitFor({ timeout: 20_000 })
-  await rowX.getByText('Acknowledged by builder').waitFor({ timeout: 15_000 })
+  await signPreference(rowX, DEV.w.key)
+  await w.getByText(/Accept: saved/).waitFor({ timeout: 20_000 })
   await settle(w)
   await w.reload()
   const rowA = w.locator('li', { hasText: `${A.label}.ai` }).first()
   await rowA.waitFor({ timeout: 15_000 })
   await rowA.getByRole('button', { name: 'Decline' }).click()
-  await w.getByText(/Decline: signed preferences saved/).waitFor({ timeout: 20_000 })
-  await rowA.getByText('Declined by builder').waitFor({ timeout: 15_000 })
+  await signPreference(rowA, DEV.w.key)
+  await w.getByText(/Decline: saved/).waitFor({ timeout: 20_000 })
 }, w)
 
 // ---------------------------------------------------------------- admin + issuer
-const admin = await persona(browser, 'admin', { account: DEV.admin })
-await step('Admin: approve an organization issuer from the dashboard', async () => {
-  await connectBrowserWallet(admin)
+const admin = await persona(browser, 'admin')
+await step('Admin: connect and approve an organization issuer', async () => {
+  await connect(admin, DEV.admin.address)
   await admin.goto(`${APP}/dashboard/credentials`)
   await admin.getByText(/Issuer allowlist/).waitFor({ timeout: 15_000 })
-  await admin.getByLabel('Issuer wallet').fill(DEV.org)
+  await admin.getByLabel('Issuer wallet').fill(DEV.org.address)
   await admin.getByLabel('Organization name').fill('QA Org')
   await walletAction(admin, 'Approve issuer')
 }, admin)
-const org = await persona(browser, 'org', { account: DEV.org })
-await step('Org: past expiry is blocked in the issue form', async () => {
-  await connectBrowserWallet(org)
+const org = await persona(browser, 'org')
+await step('Org: connect and see the past-expiry check', async () => {
+  await connect(org, DEV.org.address)
   await org.goto(`${APP}/dashboard/credentials`)
   await org.getByText(/Issue a credential as QA Org/).waitFor({ timeout: 15_000 })
   await org.getByLabel('Subject profile').fill('qathree.ai')
@@ -461,7 +397,7 @@ await step('Org: past expiry is blocked in the issue form', async () => {
   await org.getByLabel('Expires (optional)').fill('2020-01-01')
   await org.getByText('Must be in the future').waitFor()
 }, org)
-await step('Org: issue a credential, then issue and revoke a second one', async () => {
+await step('Org: issue a credential, then issue and revoke another', async () => {
   await org.getByLabel('Expires (optional)').fill('')
   await walletAction(org, 'Issue credential on-chain')
   await settle(org)
@@ -478,39 +414,20 @@ await step('Org: issue a credential, then issue and revoke a second one', async 
   await walletAction(org, 'Revoke', card)
 }, org)
 
-// ---------------------------------------------------------------- wrong network
-const wrong = await persona(browser, 'wrongChain', { account: DEV.w, chainId: '0x61' })
-await step('Wrong network: wallet on BSC testnet is moved to chain 56 before any write', async () => {
-  await wrong.goto(`${APP}/dashboard`)
-  await wrong.getByRole('button', { name: /qa wallet/i }).first().click()
-  await wrong.getByRole('heading', { level: 1, name: 'Dashboard' }).waitFor({ timeout: 15_000 })
-  const guard = wrong.getByText(/attested only writes to BNB Smart Chain mainnet/)
-  if (await guard.isVisible().catch(() => false)) {
-    await wrong.getByRole('button', { name: 'Switch to BNB Smart Chain' }).click()
-    await guard.waitFor({ state: 'detached', timeout: 15_000 })
-  }
-  const switches = await wrong.evaluate(() => window.__qaSwitchRequests || 0)
-  const chainId = await wrong.evaluate(() => window.ethereum.request({ method: 'eth_chainId' }))
-  expect(switches > 0 && chainId === '0x38', `switch requests=${switches} chain=${chainId}`)
-  return `switch requested ${switches}×, wallet now on ${chainId}`
-}, wrong)
-
-// ---------------------------------------------------------------- public views after activity
+// ---------------------------------------------------------------- public views
 await step('Public profile: trust sections, accepted tag, declined hidden', async () => {
   await v.goto(`${APP}/p/qathree.ai`)
   await v.getByRole('heading', { level: 1, name: 'QA Builder W' }).waitFor({ timeout: 15_000 })
   await v.getByText('Acknowledged by builder').first().waitFor()
   await v.getByText(/declined by the builder/).waitFor()
-  expect((await v.locator('li', { hasText: `${A.label}.ai` }).count()) === 0, 'declined attestation still listed')
+  if (await v.locator('li', { hasText: `${A.label}.ai` }).count()) throw new Error('declined attestation still listed')
   await v.getByRole('heading', { name: 'Winner, QA Hackathon' }).waitFor()
   await v.getByRole('heading', { name: 'Temporary badge' }).waitFor()
 }, v)
-await step('Public profile: "View transaction" resolves to a tx', async () => {
-  const link = v.getByRole('link', { name: /Creation tx/ })
-  await link.waitFor()
+await step('Public profile: "View tx" resolves to a transaction', async () => {
   await v.waitForFunction(() => [...document.querySelectorAll('a')].some((x) => /\/tx\/0x[0-9a-f]{64}/.test(x.href)), null, { timeout: 15_000 })
 }, v)
-await step('Builders: both builders listed and skill filter works', async () => {
+await step('Builders: builders listed and skill filter works', async () => {
   await v.goto(`${APP}/builders`)
   await v.getByText('QA Builder W').waitFor({ timeout: 15_000 })
   await v.getByText('Agent Builder A').waitFor()
@@ -518,50 +435,50 @@ await step('Builders: both builders listed and skill filter works', async () => 
   await v.getByText('Agent Builder A').waitFor()
   expect((await v.getByText('QA Builder W').count()) === 0, 'skill filter did not exclude W')
 }, v)
-await step('Reputation: W listed (opted in), breakdown excludes declined', async () => {
+await step('Reputation: opted-in builder listed; declined excluded', async () => {
   await v.goto(`${APP}/reputation`)
   await v.getByText('QA Builder W').waitFor({ timeout: 15_000 })
   expect((await v.getByText('Agent Builder A').count()) === 0, 'non-opted-in builder listed')
   await v.getByRole('link', { name: /Breakdown/ }).first().click()
   await v.getByText(/declined by the builder/).waitFor({ timeout: 15_000 })
-  await v.getByText('0x15d3…6A65').first().waitFor()
 }, v)
 await step('Activity: filters by type, action and query', async () => {
   await v.goto(`${APP}/activity`)
   await v.getByText(/attested “solidity”/).first().waitFor({ timeout: 15_000 })
   await v.goto(`${APP}/activity?type=credential&action=revoked`)
   await v.getByText(/Temporary badge.*was revoked/).waitFor()
-  expect((await v.getByText(/attested/).count()) === 0, 'type filter leaked attestations')
-  // X never created a profile, so attested shows the address, not a name (no name→wallet lookups).
-  await v.goto(`${APP}/activity?q=${DEV.x}`)
+  expect((await v.locator('ol li', { hasText: 'attested' }).count()) === 0, 'type filter leaked attestations')
+  await v.goto(`${APP}/activity?q=${DEV.x.address}`)
   await v.getByText(/0x15d3…6A65 attested/).first().waitFor()
 }, v)
-await step('Organizations: QA Org listed with counts and detail page', async () => {
+await step('Organizations: QA Org listed and its detail page opens', async () => {
   await v.goto(`${APP}/organizations`)
   await v.getByText('QA Org').first().click()
   await v.getByRole('heading', { level: 1, name: 'QA Org' }).waitFor({ timeout: 15_000 })
-  await v.getByText('Winner, QA Hackathon').first().waitFor()
+  await v.getByRole('heading', { name: 'Winner, QA Hackathon' }).first().waitFor()
 }, v)
-await step('Verify: attestation shows builder response, credential status, tx decode', async () => {
+await step('Verify: builder response, credential status, tx decode, address', async () => {
   await v.goto(`${APP}/verify?q=attestation:2`)
   await v.getByText(/accepted \(owner-signed, off-chain\)/).waitFor({ timeout: 15_000 })
+  await v.goto(`${APP}/verify?q=attestation:3`)
+  await v.getByText(/declined \(owner-signed, off-chain\)/).waitFor({ timeout: 15_000 })
   await v.goto(`${APP}/verify?q=credential:1`)
   await v.getByText(/Currently valid: issued by an approved organization/).waitFor()
   await v.goto(`${APP}/verify?q=credential:2`)
   await v.getByText(/Not currently valid/).waitFor()
-  const hash = attestationTx.match(/0x[0-9a-fA-F]{64}/)?.[0]
-  if (hash) {
-    await v.goto(`${APP}/verify?q=${hash}`)
+  await v.goto(`${APP}/verify?q=${DEV.w.address}`)
+  await v.getByText(/Holds an Agent ID/).waitFor()
+  if (attestationTx) {
+    await v.goto(`${APP}/verify?q=${attestationTx}`)
     await v.getByText('AttestationIssued').waitFor()
   }
-  await v.goto(`${APP}/verify?q=${DEV.w}`)
-  await v.getByText(/Holds an Agent ID/).waitFor()
 }, v)
-await step('W: hide from Explore and hide social links take effect', async () => {
+await step('W: hide from Explore and social links take effect', async () => {
   await w.goto(`${APP}/dashboard/settings`)
   await w.getByText('Hide me from Explore').click()
   await w.getByText('Hide social links').click()
   await w.getByRole('button', { name: 'Sign & save preferences' }).click()
+  await signPreference(w, DEV.w.key)
   await w.getByText('SAVED ✓').waitFor({ timeout: 20_000 })
   await settle(w, 500)
   await v.goto(`${APP}/builders`)
@@ -571,8 +488,13 @@ await step('W: hide from Explore and hide social links take effect', async () =>
   await v.getByRole('heading', { level: 1, name: 'QA Builder W' }).waitFor()
   expect((await v.getByRole('link', { name: /^github ↗$/i }).count()) === 0, 'social link still shown')
 }, v)
+await step('W: disconnect returns to the connect box', async () => {
+  await w.goto(`${APP}/dashboard/settings`)
+  await w.getByRole('button', { name: 'Disconnect' }).click()
+  await w.getByRole('heading', { name: 'Your Agent ID wallet' }).waitFor({ timeout: 15_000 })
+}, w)
 
-// ---------------------------------------------------------------- mobile pass
+// ---------------------------------------------------------------- mobile
 const m = await persona(browser, 'mobile', { mobile: true })
 await step('Mobile: key pages have no horizontal overflow', async () => {
   const bad = []

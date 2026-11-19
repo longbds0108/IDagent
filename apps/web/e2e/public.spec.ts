@@ -54,7 +54,7 @@ test.describe('phase-2 pages', () => {
     await page.goto('/reputation')
     await expect(page.getByRole('heading', { level: 1, name: /can audit/ })).toBeVisible()
     for (const c of ['EVIDENCE', 'PEER', 'ISSUER']) await expect(page.getByText(c, { exact: true }).first()).toBeVisible()
-    await expect(page.getByText(/never merged into one number/)).toBeVisible()
+    await expect(page.getByText(/Each part is shown on its own/)).toBeVisible()
   })
 
   test('/settings routes to the dashboard settings tab', async ({ page }) => {
@@ -64,17 +64,17 @@ test.describe('phase-2 pages', () => {
 })
 
 test.describe('dashboard connection', () => {
-  test('offers agent path and browser wallet, never QR / pairing codes', async ({ page }) => {
+  test('only one way in: the Agent ID wallet field, no browser wallet option', async ({ page }) => {
     await page.goto('/dashboard')
-    await expect(page.getByRole('heading', { name: 'Through your AI agent' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Browser wallet' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Your Agent ID wallet' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /browser wallet/i })).toHaveCount(0)
     await expect(page.locator('body')).not.toContainText(/scan (the )?QR|pairing code:/i)
   })
 
-  test('a wallet without Agent ID gets a clear eligibility error', async ({ page }) => {
+  test('a wallet without Agent ID cannot connect', async ({ page }) => {
     await page.goto('/dashboard')
     await page.getByLabel('Agentic Wallet address').fill('0x000000000000000000000000000000000000dEaD')
-    await page.getByRole('button', { name: 'Use this address' }).click()
-    await expect(page.getByText(/No Agent ID found for this address/)).toBeVisible({ timeout: 20_000 })
+    await page.getByRole('button', { name: 'CONNECT', exact: true }).click()
+    await expect(page.getByText(/This wallet has no Agent ID/)).toBeVisible({ timeout: 20_000 })
   })
 })
