@@ -83,7 +83,7 @@ export function MetaStatusNote({ status }: { status: string }) {
   const text: Record<string, string> = {
     mismatch: 'Metadata does NOT match the on-chain hash — ignore its content',
     unavailable: 'Metadata unavailable — only the on-chain hash is known',
-    invalid: 'Metadata matches hash but does not follow the SkillProof schema',
+    invalid: 'Metadata matches hash but does not follow the Attested schema',
   }
   return <span className="text-[12px] font-medium text-bad">{text[status] ?? status}</span>
 }

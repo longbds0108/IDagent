@@ -20,7 +20,7 @@ const PRINCIPLES = [
 
 const FAQ = [
   {
-    q: 'WHAT IS SKILLPROOF?',
+    q: 'WHAT IS ATTESTED?',
     a: 'An on-chain builder portfolio on BNB Smart Chain. You publish projects with evidence, other Agent ID holders attest to the skills they witnessed, and approved organizations issue credentials. All three stay separate',
   },
   {
@@ -29,11 +29,11 @@ const FAQ = [
   },
   {
     q: 'HOW DOES IT WORK WITH AN AGENTIC WALLET?',
-    a: 'Enter your Agentic Wallet address on the dashboard. For each action SkillProof prepares calldata and a baw contract-call preview command; your own AI agent runs it and you confirm in the Binance App. SkillProof never holds keys or sessions',
+    a: 'Enter your Agentic Wallet address on the dashboard. For each action Attested prepares calldata and a baw contract-call preview command; your own AI agent runs it and you confirm in the Binance App. Attested never holds keys or sessions',
   },
   {
     q: 'DOES A PEER ATTESTATION PROVE MY SKILL?',
-    a: 'No. It proves that another Agent ID holder signed a public statement about your work. Readers decide how much weight to give it. SkillProof never turns attestations into a single trust score',
+    a: 'No. It proves that another Agent ID holder signed a public statement about your work. Readers decide how much weight to give it. Attested never turns attestations into a single trust score',
   },
   {
     q: 'WHO CAN ISSUE CREDENTIALS?',
@@ -237,7 +237,7 @@ export default async function Landing() {
             </div>
             <div className="sp-cta__node sp-cta__node--core">
               <i>✓</i>
-              <strong>SKILLPROOF</strong>
+              <strong>ATTESTED</strong>
               <small>RECORD</small>
             </div>
             <div className="sp-cta__node sp-cta__node--end">
@@ -264,7 +264,7 @@ export default async function Landing() {
       <footer className="sp-footer sp-dark" data-header-theme="dark">
         <div className="sp-footer__top">
           <div>
-            <strong>SkillProof</strong>
+            <strong>Attested</strong>
             <p>EVIDENCE-BACKED BUILDER PROFILES</p>
             <ul className="sp-footer__limits">
               <li>Agent ID is an eligibility signal, not proof of personhood</li>
@@ -301,10 +301,10 @@ export default async function Landing() {
           </div>
         </div>
         <div className="sp-footer__wordmark" aria-hidden>
-          SKILLPROOF
+          ATTESTED
         </div>
         <div className="sp-footer__bottom">
-          <span>© 2026 SKILLPROOF</span>
+          <span>© 2026 ATTESTED</span>
           <span>BUILT ON BNB SMART CHAIN</span>
           <span>NOT AFFILIATED WITH BINANCE OR BNB CHAIN</span>
         </div>

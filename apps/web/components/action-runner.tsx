@@ -34,7 +34,7 @@ type Phase =
   | { k: 'error'; message: string }
 
 /**
- * Runs one SkillProof write. Wallet mode: prepare → simulate + fee estimate → wallet prompt →
+ * Runs one Attested write. Wallet mode: prepare → simulate + fee estimate → wallet prompt →
  * receipt. Agent mode: prepare → simulate → calldata + baw command → user pastes tx hash →
  * receipt. Success is only ever shown from an on-chain receipt.
  */
@@ -308,7 +308,7 @@ function AgentHandoff({
           <li><code className="font-mono">351802</code>: Developer Mode expired. Re-enable it in the Binance App.</li>
           <li><code className="font-mono">351803</code>: the wallet's risk engine blocked the call. Nothing was sent.</li>
           <li><code className="font-mono">351804</code>: wallet balance is above the Developer Mode balance cap.</li>
-          <li><code className="font-mono">351805</code>: simulation failed (usually the same revert SkillProof showed above).</li>
+          <li><code className="font-mono">351805</code>: simulation failed (usually the same revert Attested showed above).</li>
         </ul>
       </details>
       <div className="relative">

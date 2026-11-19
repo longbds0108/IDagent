@@ -78,7 +78,7 @@ export function ConnectPanel() {
         <p className="mt-4 max-w-md text-[14.5px] leading-relaxed text-ink-2">
           Your Agent ID lives in your Agentic Wallet, an isolated wallet separate from your regular Binance MPC wallet, so actions
           must come from that address. Ask your agent for <code className="font-mono text-[13px] text-peer">baw wallet address --json</code> and
-          paste the BSC address. For every action SkillProof prepares calldata and a{' '}
+          paste the BSC address. For every action Attested prepares calldata and a{' '}
           <code className="font-mono text-[13px] text-peer">baw contract-call</code> command; your agent runs it with Developer Mode on, and
           you confirm.
         </p>
@@ -103,7 +103,7 @@ export function ConnectPanel() {
             Use this address
           </Button>
           <p className="sp-label !normal-case !tracking-normal leading-relaxed">
-            Not a login. SkillProof never asks for QR codes, pairing codes, keys or sessions, and cannot act for you.
+            Not a login. Attested never asks for QR codes, pairing codes, keys or sessions, and cannot act for you.
           </p>
         </form>
       </section>
@@ -156,7 +156,7 @@ export function ChainGuard() {
   if (mode !== 'wallet' || !isConnected || chainId === BSC_CHAIN_ID) return null
   return (
     <Notice tone="bad" className="flex flex-wrap items-center justify-between gap-2">
-      <span>Your wallet is on chain {chainId}. SkillProof only writes to BNB Smart Chain mainnet (56).</span>
+      <span>Your wallet is on chain {chainId}. Attested only writes to BNB Smart Chain mainnet (56).</span>
       <Button size="sm" variant="danger" disabled={isPending} onClick={() => switchChain({ chainId: BSC_CHAIN_ID })}>
         Switch to BNB Smart Chain
       </Button>

@@ -45,13 +45,13 @@ export function LandingHeader() {
 
   return (
     <header className={`sp-header sp-header--${theme}`}>
-      <Link href="/" className="sp-header__brand" aria-label="SkillProof home">
+      <Link href="/" className="sp-header__brand" aria-label="Attested home">
         <svg viewBox="0 0 24 24" aria-hidden>
           <rect x="1.5" y="1.5" width="21" height="21" rx="5" fill="currentColor" />
           <path d="M7 12.5l3 3 7-7.5" fill="none" stroke="var(--sp-header-bg-solid)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
           <circle cx="18.5" cy="18.5" r="2.6" fill="#9b5de5" />
         </svg>
-        <span>SkillProof</span>
+        <span>Attested</span>
       </Link>
       <nav className="sp-nav" aria-label="Sections" style={{ ['--sp-nav-index' as string]: Math.max(active, 0) }}>
         <span className={`sp-nav__pill ${active < 0 ? 'is-hidden' : ''}`} aria-hidden />

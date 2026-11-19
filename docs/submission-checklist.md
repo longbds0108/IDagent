@@ -33,7 +33,7 @@ after that. Only data generated during the submission window counts.
 - [x] Name does not use "Binance"/"BNB" to impersonate; footer states non-affiliation
 - [x] Never collects seed phrases, private keys, API secrets or pairing codes
 - [x] No promised returns; no trading features
-- [x] Not a "look up other people's wallets by name" tool: only names bound by their owner on SkillProof resolve, and
+- [x] Not a "look up other people's wallets by name" tool: only names bound by their owner on Attested resolve, and
       owners can hide from Explore
 - [ ] No volume manipulation or mass account registration. Grow usage only through real builders and attesters.
 

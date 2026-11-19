@@ -134,7 +134,7 @@ export default function DashboardHome() {
               </li>
             ))}
           </ul>
-          <p className="mt-4 text-[12px] text-ink-3">This checklist is guidance only. SkillProof shows no overall trust score.</p>
+          <p className="mt-4 text-[12px] text-ink-3">This checklist is guidance only. Attested shows no overall trust score.</p>
           <div className="mt-4 flex flex-col gap-1.5 text-[13px]">
             <Link className="font-mono text-[11px] uppercase tracking-[0.04em] text-peer underline underline-offset-4" href="/dashboard/projects">Add project evidence ↗</Link>
             <Link className="font-mono text-[11px] uppercase tracking-[0.04em] text-peer underline underline-offset-4" href="/dashboard/endorsements">Request an attestation ↗</Link>

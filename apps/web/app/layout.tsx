@@ -10,10 +10,10 @@ const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['400', '500', '600'],
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.PUBLIC_APP_URL || 'http://localhost:3000'),
-  title: { default: 'SkillProof: evidence-backed builder profiles', template: '%s · SkillProof' },
+  title: { default: 'Attested: evidence-backed builder profiles', template: '%s · Attested' },
   description:
     'Builder portfolios anchored to Agent ID on BNB Smart Chain. Self-reported projects, peer attestations and approved-issuer credentials, each kept separate and checkable on-chain.',
-  openGraph: { type: 'website', siteName: 'SkillProof' },
+  openGraph: { type: 'website', siteName: 'Attested' },
 }
 
 export const viewport: Viewport = {

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 
-const CHARS = 'SKILLPROOF01.ai#+*◆:'
+const CHARS = 'ATTESTED01.ai#+*◆:'
 
 type Cell = { x: number; y: number; nx: number; ny: number; noise: number; ch: string; reveal: number; orbit: boolean }
 

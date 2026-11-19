@@ -90,7 +90,7 @@ export default async function ReputationPage({ searchParams }: { searchParams: P
     if (!data) {
       return (
         <div className="py-16">
-          <Notice tone="bad">No SkillProof profile matches “{param}”.</Notice>
+          <Notice tone="bad">No Attested profile matches “{param}”.</Notice>
         </div>
       )
     }
@@ -113,7 +113,7 @@ export default async function ReputationPage({ searchParams }: { searchParams: P
         {!data.optedIn ? (
           <Notice className="mt-8">
             This builder has not opted in to having scores displayed. Every input is public on-chain, so anyone can recompute these
-            numbers. SkillProof shows them only on request, and keeps them out of listings.
+            numbers. Attested shows them only on request, and keeps them out of listings.
           </Notice>
         ) : null}
         <div className="mt-8 grid gap-4 lg:grid-cols-3">
@@ -160,7 +160,7 @@ export default async function ReputationPage({ searchParams }: { searchParams: P
             can audit
           </>
         }
-        lede="Reputation on SkillProof is opt-in, published as a formula and split by source. Self-reported evidence, peer attestations and issuer credentials are scored separately and never merged into one number."
+        lede="Reputation on Attested is opt-in, published as a formula and split by source. Self-reported evidence, peer attestations and issuer credentials are scored separately and never merged into one number."
         className="!pt-8 sm:!pt-12"
       />
       <section className="mt-12 grid gap-4 lg:grid-cols-3">

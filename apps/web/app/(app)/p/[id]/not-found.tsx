@@ -7,7 +7,7 @@ export default function NotFound() {
       <p className="sp-label">// 404 · NO SUCH PROFILE</p>
       <h1 className="sp-display mt-5 text-[clamp(3rem,8vw,6.5rem)]">Profile not found</h1>
       <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-ink-2">
-        Profiles resolve by id, by a .ai name the owner bound on SkillProof, or by owner address.
+        Profiles resolve by id, by a .ai name the owner bound on Attested, or by owner address.
       </p>
       <Link href="/builders" className={buttonClass('secondary', 'md', 'mt-8')}>
         Explore builders

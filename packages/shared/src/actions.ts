@@ -16,10 +16,10 @@ export interface ContractAddresses {
 }
 
 /**
- * Every state-changing SkillProof action, described as data. The same description drives
+ * Every state-changing Attested action, described as data. The same description drives
  * (a) wagmi `writeContract` for injected wallets and (b) calldata for an Agentic Wallet,
  * whose AI agent submits it with `baw contract-call preview` and the user confirms in the
- * Binance App. SkillProof never signs, stores sessions or handles pairing codes.
+ * Binance App. Attested never signs, stores sessions or handles pairing codes.
  */
 export type SkillProofAction =
   | { action: 'createProfile'; agentLabel: string; metadataURI: string; metadataHash: Hex }
@@ -138,7 +138,7 @@ export function prepareAction(a: SkillProofAction, c: ContractAddresses): Prepar
  * Command for the user's own AI agent running the official Binance Agentic Wallet CLI.
  * Requires Developer Mode, enabled by the user in the Binance App. `preview` returns a
  * requestId; the agent shows the preview to the user and only then runs `execute`, and
- * the Binance App may ask for a further confirmation. SkillProof never runs this itself.
+ * the Binance App may ask for a further confirmation. Attested never runs this itself.
  */
 export function bawPreviewCommand(from: Address, call: Pick<PreparedCall, 'to' | 'data'>, gasLimit?: bigint): string {
   if (!isAddress(from)) throw new Error('Invalid from address')
@@ -151,7 +151,7 @@ export function bawPreviewCommand(from: Address, call: Pick<PreparedCall, 'to' |
     `--to ${call.to}`,
     '--value 0',
     `--inputData ${call.data}`,
-    // An explicit cap with margin: SkillProof writes block timestamps/numbers, so exact estimates can run out of gas.
+    // An explicit cap with margin: Attested writes block timestamps/numbers, so exact estimates can run out of gas.
     ...(gasLimit !== undefined ? [`--gasLimit ${gasLimit}`] : []),
     '--json',
   ].join(' ')

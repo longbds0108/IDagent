@@ -1,8 +1,8 @@
-# SkillProof
+# Attested
 
 On-chain builder portfolios anchored to **Agent ID** on **BNB Smart Chain mainnet (chain 56)**.
 
-SkillProof keeps three kinds of claims apart and never merges them into one "verified" badge:
+Attested keeps three kinds of claims apart and never merges them into one "verified" badge:
 
 | Label | Proves | Does not prove |
 |---|---|---|
@@ -30,7 +30,7 @@ Agent ID is enforced **inside the contracts**, not just in the UI:
   `AgentID.balanceOf(msg.sender) > 0`.
 - A builder can bind their own `name.ai`. The registry checks `AgentID.ownerOf(keccak256(name)) == msg.sender`.
 - One profile per address and per Agent ID token. No self-attestation. One active attestation per issuer, project and skill.
-- Agentic Wallet users act through **their own AI agent**: SkillProof prepares calldata and a
+- Agentic Wallet users act through **their own AI agent**: Attested prepares calldata and a
   `baw contract-call preview` command, the agent runs it, and the user confirms in the Binance App. No QR codes,
   pairing codes, keys or server sessions. See [`skills/skillproof/SKILL.md`](skills/skillproof/SKILL.md).
 
@@ -108,4 +108,4 @@ foreign `.ai` name, self-attestation, duplicate, unauthorized issuer). Nothing i
 - Agent ID is an eligibility signal, **not proof of personhood or uniqueness**.
 - Attestations are signed statements, not proof of truth. Credentials prove issuance, not infallibility.
 - The `tokenId = keccak256(label)` relation was observed on-chain, not documented. Label binding is optional and fails closed.
-- SkillProof is an independent project, not affiliated with or endorsed by Binance or BNB Chain.
+- Attested is an independent project, not affiliated with or endorsed by Binance or BNB Chain.

@@ -2,7 +2,7 @@ import type { Address, Hex } from 'viem'
 import { BSC_CHAIN_ID } from '@skillproof/shared'
 
 /**
- * Off-chain, owner-signed presentation preferences (EIP-712). They change only how SkillProof
+ * Off-chain, owner-signed presentation preferences (EIP-712). They change only how Attested
  * presents an account: they never alter on-chain records, which stay public in the Verification
  * Center and Activity feed. Agentic Wallets sign EIP-712 via `baw sign-message`; browser wallets
  * via eth_signTypedData_v4.
@@ -49,7 +49,7 @@ export const PREFERENCE_TYPES = {
 } as const
 
 export function preferenceDomain(verifyingContract: Address) {
-  return { name: 'SkillProof Preferences', version: '1', chainId: BSC_CHAIN_ID, verifyingContract } as const
+  return { name: 'Attested Preferences', version: '1', chainId: BSC_CHAIN_ID, verifyingContract } as const
 }
 
 export function preferenceMessage(p: Preferences) {

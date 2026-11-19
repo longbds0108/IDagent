@@ -26,7 +26,7 @@ Sources: the hackathon announcement, the official skill
 - **Which address holds the Agent ID:** the Agentic Wallet, described as "an isolated wallet, separate from your existing
   Binance MPC Wallet". Claiming deposits BNB into the Agentic Wallet address and sends the claim transaction from it. We
   confirmed on-chain that mint transactions are sent by the address that receives the token. Because Agent IDs are
-  non-transferable, Agent-ID-gated SkillProof calls must be sent from the Agentic Wallet.
+  non-transferable, Agent-ID-gated Attested calls must be sent from the Agentic Wallet.
 - **How that wallet calls a third-party contract:** only through Developer Mode:
   `baw contract-call preview --binanceChainId 56 --from <agentic> --to <contract> --value 0 --inputData <calldata> --json`,
   then `baw contract-call execute --requestId <id> --json`. `BROADCASTED` returns `txHash`; `PENDING_CONFIRMATION` means
@@ -38,11 +38,11 @@ Sources: the hackathon announcement, the official skill
   - High-risk previews are blocked (351803), an expired mode errors with 351802, and simulation failures error with 351805.
   - No contract allowlist is documented.
 - **Signing:** EIP-712 only, via `baw sign-message preview/execute/result`. `execute` returns `signature` and
-  `signatureRecovery` separately; SkillProof accepts both forms. EIP-191 `personal_sign`, and therefore SIWE, is not
+  `signatureRecovery` separately; Attested accepts both forms. EIP-191 `personal_sign`, and therefore SIWE, is not
   supported.
 - **Address lookup:** `baw wallet address --json` returns `addresses[]`; use the entry with `binanceChainId` "56".
 - **Gas:** paid in BNB from the Agentic Wallet. `contract-call` takes no gas price; `--gasLimit` (21000–15000000) is an
-  optional cap. SkillProof writes cost about 0.00001–0.00005 BNB at 0.05 gwei.
+  optional cap. Attested writes cost about 0.00001–0.00005 BNB at 0.05 gwei.
 - **Names:** `name.ai`, lowercase letters and digits, 3–15 characters (two-digit IDs exist as prizes). The claim is free
   apart from network fees.
 
@@ -61,9 +61,9 @@ The gate fails closed: if the Agent ID call reverts, the account is treated as i
 
 ## Name resolution
 
-SkillProof does **not** use a reverse lookup API. A builder may *bind* their own `label.ai` at registration; the
+Attested does **not** use a reverse lookup API. A builder may *bind* their own `label.ai` at registration; the
 registry verifies ownership on-chain with `ownerOf`. Public URLs such as `/p/alice.ai` resolve only labels that were
-bound on SkillProof by their owner, so SkillProof is not a general name-to-wallet lookup tool (a hackathon rule).
+bound on Attested by their owner, so Attested is not a general name-to-wallet lookup tool (a hackathon rule).
 
 ## Wallet changes
 

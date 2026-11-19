@@ -1,6 +1,6 @@
 import { defineChain } from 'viem'
 
-/** BNB Smart Chain mainnet is the ONLY supported network for SkillProof writes. */
+/** BNB Smart Chain mainnet is the ONLY supported network for Attested writes. */
 export const BSC_CHAIN_ID = 56 as const
 export const BSC_CHAIN_ID_HEX = '0x38' as const
 export const DEFAULT_RPC_URL = 'https://bsc-dataseed.bnbchain.org'

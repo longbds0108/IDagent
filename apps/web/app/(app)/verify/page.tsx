@@ -102,7 +102,7 @@ async function Result({ q }: { q: string }) {
               </dd>
             </dl>
           </div>
-          {v.status === 'success' && !v.touchesSkillProof ? <Notice tone="warn">This transaction did not emit any SkillProof events.</Notice> : null}
+          {v.status === 'success' && !v.touchesSkillProof ? <Notice tone="warn">This transaction did not emit any Attested events.</Notice> : null}
           {v.events.length ? (
             <ul className="space-y-2">
               {v.events.map((e) => {
@@ -148,7 +148,7 @@ async function Result({ q }: { q: string }) {
               <dd className="break-anywhere font-mono">{acct.address}</dd>
               <dt className="text-ink-3">Holds an Agent ID</dt>
               <dd>{acct.agentIdHeld ? 'Yes' : 'No'}</dd>
-              <dt className="text-ink-3">SkillProof profile</dt>
+              <dt className="text-ink-3">Attested profile</dt>
               <dd>{acct.profileId ? <Link className="underline" href={`/p/${acct.profileId}`}>#{acct.profileId}</Link> : 'None'}</dd>
               <dt className="text-ink-3">Approved issuer</dt>
               <dd>{acct.isIssuer ? `Yes: ${acct.issuer?.name}` : acct.issuer ? `Removed (was ${acct.issuer.name})` : 'No'}</dd>
@@ -160,7 +160,7 @@ async function Result({ q }: { q: string }) {
     case 'profile': {
       const id = await resolveProfileId(parsed.ref).catch(() => null)
       const p = id !== null ? await getProfile(id) : null
-      if (!p) return <Notice tone="bad">No SkillProof profile matches “{parsed.ref}”.</Notice>
+      if (!p) return <Notice tone="bad">No Attested profile matches “{parsed.ref}”.</Notice>
       return (
         <Section title={<>Profile #{p.id}</>}>
           <div className="sp-panel p-4 text-[13px]">
@@ -302,7 +302,7 @@ export default async function VerifyPage({ searchParams }: { searchParams: Promi
           <div className="grid gap-4 md:grid-cols-3">
             {(
               [
-                ['01', 'TRANSACTION', 'Decode SkillProof events in any BSC transaction and jump to the current state of each record.'],
+                ['01', 'TRANSACTION', 'Decode Attested events in any BSC transaction and jump to the current state of each record.'],
                 ['02', 'RECORD', 'project:ID, attestation:ID or credential:ID: live status, issuer checks and the hashed evidence.'],
                 ['03', 'PROFILE / ADDRESS', 'A profile id, a bound name.ai or an address: identity status and Agent ID eligibility.'],
               ] as const

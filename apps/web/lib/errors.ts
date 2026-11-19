@@ -1,9 +1,9 @@
-/** Human-readable explanations for SkillProof custom errors (shown on revert). */
+/** Human-readable explanations for Attested custom errors (shown on revert). */
 export const REVERT_MESSAGES: Record<string, string> = {
   NotAgentIdHolder:
     'This wallet does not hold an Agent ID on BNB Smart Chain. Claim one in the Binance App (Wallet → Agent ID) and use that wallet.',
   AgentIdContractHasNoCode: 'Misconfigured Agent ID contract address.',
-  ProfileAlreadyExists: 'This wallet already has a SkillProof profile. Use "Update profile" instead.',
+  ProfileAlreadyExists: 'This wallet already has a Attested profile. Use "Update profile" instead.',
   NoProfile: 'Create your profile first.',
   ProfileNotFound: 'That profile does not exist.',
   InvalidAgentLabel: 'Invalid .ai name.',

@@ -49,7 +49,7 @@ export default function SettingsPage() {
           <CardHeader
             index="01"
             title="Privacy & presentation"
-            description="These preferences are signed by your address and change only how SkillProof presents you. On-chain records and their metadata stay public and verifiable."
+            description="These preferences are signed by your address and change only how Attested presents you. On-chain records and their metadata stay public and verifiable."
           />
           <CardBody className="space-y-1">
             {TOGGLES.map(([key, title, help]) => (
@@ -145,7 +145,7 @@ export default function SettingsPage() {
                 </Button>
               ) : null}
             </div>
-            <p className="text-[12.5px] text-ink-3">SkillProof never stores sessions, keys, QR codes or pairing codes on its servers.</p>
+            <p className="text-[12.5px] text-ink-3">Attested never stores sessions, keys, QR codes or pairing codes on its servers.</p>
           </CardBody>
         </Card>
       </div>

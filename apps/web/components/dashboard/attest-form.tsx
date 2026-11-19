@@ -41,7 +41,7 @@ export function AttestForm({ initial }: { initial: { profile?: string; project?:
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Builder" htmlFor="at-target" hint="Profile id or the .ai name bound on SkillProof" error={debounced && bundle.isError ? 'Profile not found' : null}>
+        <Field label="Builder" htmlFor="at-target" hint="Profile id or the .ai name bound on Attested" error={debounced && bundle.isError ? 'Profile not found' : null}>
           <Input id="at-target" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="e.g. 12 or alice.ai" className="font-mono" />
         </Field>
         <Field label="Project" htmlFor="at-project">
