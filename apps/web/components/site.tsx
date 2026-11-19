@@ -31,9 +31,9 @@ export function SiteHeader() {
   return (
     <>
       <header className="sp-header sp-header--app sp-header--dark">
-        <Link href="/" className="sp-header__brand" aria-label="Attested home">
+        <Link href="/" className="sp-header__brand" aria-label="attested home">
           <BrandMark />
-          <span>Attested</span>
+          <span>attested</span>
         </Link>
         <nav className="sp-nav sp-nav--app" aria-label="Main" style={{ ['--sp-nav-index' as string]: Math.max(active, 0), ['--sp-nav-n' as string]: NAV.length }}>
           <span className={`sp-nav__pill ${active < 0 ? 'is-hidden' : ''}`} aria-hidden />
@@ -102,10 +102,10 @@ export function SiteFooter() {
         </div>
       </div>
       <div className="sp-app-footer__wordmark" aria-hidden>
-        ATTESTED
+        attested
       </div>
       <div className="sp-app-footer__bottom">
-        <span>© 2026 ATTESTED</span>
+        <span>© 2026 attested</span>
         <span>BUILT ON BNB SMART CHAIN</span>
         <span>NOT AFFILIATED WITH BINANCE OR BNB CHAIN</span>
       </div>

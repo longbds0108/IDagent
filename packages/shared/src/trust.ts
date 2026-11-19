@@ -1,5 +1,5 @@
 /**
- * Three trust levels that Attested never merges into a single "verified" badge.
+ * Three trust levels that attested never merges into a single "verified" badge.
  */
 export const trustLevels = {
   self: {
@@ -17,7 +17,7 @@ export const trustLevels = {
   issuer: {
     label: 'Approved issuer credential',
     short: 'Issuer',
-    proves: 'An organization approved by the Attested admin issued this credential and has not revoked it.',
+    proves: 'An organization approved by the attested admin issued this credential and has not revoked it.',
     doesNotProve: 'Factual infallibility. Issuers review evidence outside the protocol.',
   },
 } as const

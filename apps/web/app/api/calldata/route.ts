@@ -12,7 +12,7 @@ const body = z.object({
 })
 
 /**
- * Agent path: returns the exact calldata for a Attested action and the matching
+ * Agent path: returns the exact calldata for a attested action and the matching
  * `baw contract-call preview` command for the user's own AI agent. This endpoint never signs,
  * never broadcasts and never sees keys, sessions or pairing codes.
  */

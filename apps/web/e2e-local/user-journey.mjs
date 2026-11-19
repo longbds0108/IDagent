@@ -287,7 +287,7 @@ await step('W: metadata validation blocks an e-mail in the bio', async () => {
   return expectRefused(w, 'Create profile on-chain', /e-mail/i)
 }, w)
 await step('W: claiming someone else’s .ai name is refused', async () => {
-  await w.getByLabel('Bio').fill('Full-stack builder testing Attested.')
+  await w.getByLabel('Bio').fill('Full-stack builder testing attested.')
   await w.getByLabel(/Your Agent ID name/).fill(`${A.label}.ai`)
   return expectRefused(w, 'Create profile on-chain', /does not own that \.ai name/)
 }, w)
@@ -484,7 +484,7 @@ await step('Wrong network: wallet on BSC testnet is moved to chain 56 before any
   await wrong.goto(`${APP}/dashboard`)
   await wrong.getByRole('button', { name: /qa wallet/i }).first().click()
   await wrong.getByRole('heading', { level: 1, name: 'Dashboard' }).waitFor({ timeout: 15_000 })
-  const guard = wrong.getByText(/Attested only writes to BNB Smart Chain mainnet/)
+  const guard = wrong.getByText(/attested only writes to BNB Smart Chain mainnet/)
   if (await guard.isVisible().catch(() => false)) {
     await wrong.getByRole('button', { name: 'Switch to BNB Smart Chain' }).click()
     await guard.waitFor({ state: 'detached', timeout: 15_000 })
@@ -532,7 +532,7 @@ await step('Activity: filters by type, action and query', async () => {
   await v.goto(`${APP}/activity?type=credential&action=revoked`)
   await v.getByText(/Temporary badge.*was revoked/).waitFor()
   expect((await v.getByText(/attested/).count()) === 0, 'type filter leaked attestations')
-  // X never created a profile, so Attested shows the address, not a name (no name→wallet lookups).
+  // X never created a profile, so attested shows the address, not a name (no name→wallet lookups).
   await v.goto(`${APP}/activity?q=${DEV.x}`)
   await v.getByText(/0x15d3…6A65 attested/).first().waitFor()
 }, v)

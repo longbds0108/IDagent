@@ -47,8 +47,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     title: name,
     description,
     alternates: { canonical: profileHref(d.profile) },
-    openGraph: { title: `${name} on Attested`, description, type: 'profile' },
-    twitter: { card: 'summary_large_image', title: `${name} on Attested`, description },
+    openGraph: { title: `${name} on attested`, description, type: 'profile' },
+    twitter: { card: 'summary_large_image', title: `${name} on attested`, description },
   }
 }
 

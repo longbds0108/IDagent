@@ -1,17 +1,17 @@
 ---
 name: skillproof
-description: Use Attested (on-chain builder portfolio on BNB Smart Chain) from a Binance Agentic Wallet. Create a profile, add project evidence, attest to another builder's skill, or revoke your own records, by preparing calldata with the Attested API and submitting it with `baw contract-call`. Use when the user asks to register on Attested, add a project, endorse/attest a builder, or revoke a Attested record.
+description: Use attested (on-chain builder portfolio on BNB Smart Chain) from a Binance Agentic Wallet. Create a profile, add project evidence, attest to another builder's skill, or revoke your own records, by preparing calldata with the attested API and submitting it with `baw contract-call`. Use when the user asks to register on attested, add a project, endorse/attest a builder, or revoke a attested record.
 ---
 
-# Attested for Agentic Wallet agents
+# attested for Agentic Wallet agents
 
-Attested contracts live on **BNB Smart Chain mainnet (chain 56)**. Gated actions require the sender to hold an
+attested contracts live on **BNB Smart Chain mainnet (chain 56)**. Gated actions require the sender to hold an
 Agent ID (checked on-chain). You (the agent) never get keys: you prepare calldata and the user confirms every
 transaction through the official Agentic Wallet flow.
 
 ## Ground rules
 
-- Only use the contract addresses returned by the Attested API and listed below. Never invent addresses.
+- Only use the contract addresses returned by the attested API and listed below. Never invent addresses.
 - Always run `preview` first, show the user the preview (target contract, 0 BNB value, action), and only run
   `execute` after the user agrees. The Binance App may ask for a further confirmation.
 - Requires Developer Mode, which only the user can enable in the Binance App (Agentic Wallet → Settings). Check with
@@ -33,7 +33,7 @@ transaction through the official Agentic Wallet flow.
 
 ## Steps
 
-`$APP` is the Attested site origin. `$ME` is the user's Agentic Wallet address on BSC.
+`$APP` is the attested site origin. `$ME` is the user's Agentic Wallet address on BSC.
 
 1. **Check state**: `GET $APP/api/account/$ME` → `agentIdHeld`, `profileId`.
 2. **Store metadata** (profile, project, attestation note): `POST $APP/api/metadata` with
@@ -44,20 +44,20 @@ transaction through the official Agentic Wallet flow.
 3. **Dry-run**: `POST $APP/api/simulate` with `{"from":"$ME","call":{...action}}` → `{ ok, feeBnb }` or `{ ok:false, error }`.
    Stop and tell the user if `ok` is false.
 4. **Get the command**: `POST $APP/api/calldata` with the same body → `baw.preview`.
-5. Run `baw.preview` exactly as returned. It includes `--gasLimit` set to Attested's estimate +30%, because these
-   contracts write block timestamps and numbers, so an exact estimate can run out of gas. Show the user `parsedTx` (contract must be the Attested contract, value 0), the simulation result and
+5. Run `baw.preview` exactly as returned. It includes `--gasLimit` set to attested's estimate +30%, because these
+   contracts write block timestamps and numbers, so an exact estimate can run out of gas. Show the user `parsedTx` (contract must be the attested contract, value 0), the simulation result and
    any `risks`. Only on an explicit yes, run `baw contract-call execute --requestId <id> --json`.
    - `BROADCASTED` → you get `txHash`.
    - `PENDING_CONFIRMATION` → the user approves in the Binance App.
    - Errors: 351802 Developer Mode expired · 351803 blocked as high risk (no requestId, stop) · 351805 simulation failed
-     (report the message exactly, e.g. a Attested revert such as `DuplicateActiveAttestation`).
+     (report the message exactly, e.g. a attested revert such as `DuplicateActiveAttestation`).
 6. **Confirm**: open `$APP/verify?q=<txHash>`.
 
 ## Accept / decline an attestation, privacy settings (EIP-712, no gas)
 
 1. `GET $APP/api/preferences/$ME`, then modify `acceptedAttestations` / `declinedAttestations` / toggles, and set
    `issuedAt` to now (unix seconds).
-2. Sign the typed data shown on the Attested Settings page with
+2. Sign the typed data shown on the attested Settings page with
    `baw sign-message preview --binanceChainId 56 --signType EIP712 --message '<eth_signTypedData_v4 request>' --json`,
    show it to the user, then `baw sign-message execute --requestId <id> --json` (if PENDING_CONFIRMATION: user approves in
    the App, then `baw sign-message result --order-id <orderId> --json`).

@@ -3,7 +3,7 @@ import { keccak256, stringToBytes } from 'viem'
 /**
  * Agent IDs are "<label>.ai" names. On the official contract the ERC-721 token id equals
  * uint256(keccak256(bytes(label))) — verified for 311/311 mints observed on chain 56 on
- * 2026-11-18. Attested re-checks ownership on-chain (`ownerOf`) rather than trusting this
+ * 2026-11-18. attested re-checks ownership on-chain (`ownerOf`) rather than trusting this
  * client-side, so a wrong assumption fails closed.
  */
 /** Agent ID names are lowercase letters and digits (3–15 per the docs; 2-digit IDs exist as prizes). */

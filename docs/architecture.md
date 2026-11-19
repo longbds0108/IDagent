@@ -57,7 +57,7 @@ Recommended: transfer `DEFAULT_ADMIN_ROLE` and `PAUSER_ROLE` to a multisig, then
 ## Off-chain signed preferences (phase 2)
 
 `POST /api/preferences` accepts a full preferences snapshot signed with EIP-712
-(domain `Attested Preferences` v1, chain 56, verifying contract = SkillProfileRegistry):
+(domain `attested Preferences` v1, chain 56, verifying contract = SkillProfileRegistry):
 `reputationOptIn`, `hideFromExplore`, `hideSocialLinks`, `hideAvatar`, `acceptedAttestations[]`,
 `declinedAttestations[]`, `issuedAt`. The server verifies the signature with `verifyTypedData`
 (EOA, ERC-1271 and ERC-6492), rejects stale or replayed snapshots (`issuedAt` must be within 15 minutes

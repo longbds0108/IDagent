@@ -38,5 +38,5 @@ export function deployedContracts(): DeployedContracts | null {
 export const isLocalRpc = /localhost|127\.0\.0\.1/.test(publicEnv.rpcUrl)
 
 if (publicEnv.chainId !== BSC_CHAIN_ID) {
-  throw new Error(`Attested only supports BNB Smart Chain mainnet (56); NEXT_PUBLIC_CHAIN_ID=${publicEnv.chainId}`)
+  throw new Error(`attested only supports BNB Smart Chain mainnet (56); NEXT_PUBLIC_CHAIN_ID=${publicEnv.chainId}`)
 }

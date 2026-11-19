@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-/** Section heading: mono kicker on the right, Fraunces title on the left (the landing "principles" heading). */
+/** Section heading: kicker on the right, title on the left (the landing "principles" heading). */
 export function SectionHead({ kicker, title, note, action }: { kicker: string; title: ReactNode; note?: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3 border-b border-line pb-4">

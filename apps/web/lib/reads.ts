@@ -70,7 +70,7 @@ export function contracts(): DeployedContracts {
 
 export class NotConfiguredError extends Error {
   constructor() {
-    super('Attested contracts are not configured (NEXT_PUBLIC_*_REGISTRY env vars).')
+    super('attested contracts are not configured (NEXT_PUBLIC_*_REGISTRY env vars).')
   }
 }
 
@@ -333,7 +333,7 @@ export async function profileIdOf(address: Address): Promise<bigint> {
 
 /**
  * Resolve a public profile URL segment: a numeric id, a SkillProof-bound `<label>.ai` name,
- * or the owner's address. Only labels the owner bound to Attested are resolvable, so this
+ * or the owner's address. Only labels the owner bound to attested are resolvable, so this
  * is not a general Agent-ID-name-to-wallet lookup.
  */
 export async function resolveProfileId(param: string): Promise<bigint | null> {

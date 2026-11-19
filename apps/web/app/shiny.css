@@ -1,5 +1,5 @@
-/* Attested design system (landing + shared chrome) — visual language adapted from github.com/qhoangRot/Shiny-dapp:
-   ink/paper alternating sections, Fraunces display + Inter Tight hero + JetBrains Mono labels,
+/* attested design system (landing + shared chrome) — visual language adapted from github.com/qhoangRot/Shiny-dapp:
+   ink/paper alternating sections, Inter Tight throughout (single typeface),
    square violet action with an icon cell, floating pill header, ASCII field, text scramble. */
 
 :root,
@@ -15,9 +15,9 @@
   --sp-grey: #a79db5;
   --sp-line-dark: #2d2932;
   --sp-line-light: #c2bfc6;
-  --sp-display: var(--sp-font-display), 'Fraunces', Georgia, serif;
+  --sp-display: var(--sp-font-body), 'Inter Tight', system-ui, sans-serif;
   --sp-body: var(--sp-font-body), 'Inter Tight', 'Inter', system-ui, sans-serif;
-  --sp-mono: var(--sp-font-mono), 'JetBrains Mono', ui-monospace, monospace;
+  --sp-mono: var(--sp-font-body), 'Inter Tight', system-ui, sans-serif;
 }
 
 .sp-landing {

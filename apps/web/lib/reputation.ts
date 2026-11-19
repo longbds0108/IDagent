@@ -1,12 +1,12 @@
 /**
- * Attested reputation, formula v1. Public, deterministic, and recomputable by anyone from
+ * attested reputation, formula v1. Public, deterministic, and recomputable by anyone from
  * chain state. Three components are reported SEPARATELY and are never summed into one score:
  *
  *  Evidence (self-reported)  per active project with hash-verified metadata: 10 pts
  *                            + 2 pts per evidence reference (max 5 refs). Max 5 projects. Cap 100.
  *  Peer (attested)           grouped by signer; signer weight = 1 + 0.25 × (extra skills, max 2)
  *                            × 0.5 if the pair attest each other (reciprocal)
- *                            × 0.8 if the signer has no Attested profile (less accountable)
+ *                            × 0.8 if the signer has no attested profile (less accountable)
  *                            20 pts × weight. Declined attestations excluded. Cap 100.
  *  Issuer (credentials)      first valid credential per approved issuer 40 pts, each further
  *                            one from the same issuer 10 pts. Cap 100.

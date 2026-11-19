@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 
-const CHARS = 'ATTESTED01.ai#+*◆:'
+const CHARS = 'attested01.ai#+*◆:'
 
 type Cell = { x: number; y: number; nx: number; ny: number; noise: number; ch: string; reveal: number; orbit: boolean }
 
@@ -116,7 +116,7 @@ export function AsciiField() {
       dirty = false
 
       ctx.clearRect(0, 0, w, h)
-      ctx.font = `${Math.max(8, size - 1)}px "JetBrains Mono", ui-monospace, monospace`
+      ctx.font = `${Math.max(8, size - 1)}px 'Inter Tight', system-ui, sans-serif`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
 

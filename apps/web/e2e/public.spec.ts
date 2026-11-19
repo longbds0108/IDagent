@@ -16,9 +16,9 @@ test.describe('public pages work without a wallet', () => {
     await expect(page.getByRole('heading', { level: 1, name: /Builders/ })).toBeVisible()
   })
 
-  test('verification center decodes a Attested deployment transaction', async ({ page }) => {
+  test('verification center decodes a attested deployment transaction', async ({ page }) => {
     const tx = process.env.E2E_VERIFY_TX
-    test.skip(!tx, 'set E2E_VERIFY_TX to a Attested transaction hash')
+    test.skip(!tx, 'set E2E_VERIFY_TX to a attested transaction hash')
     await page.goto(`/verify?q=${tx}`)
     await expect(page.getByText(/Executed successfully/)).toBeVisible()
     const scan = page.getByRole('link', { name: /BscScan/ }).first()
