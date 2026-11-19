@@ -337,7 +337,6 @@ export default async function Landing() {
             <span className="sp-foot__status">
               <i aria-hidden /> BNB Smart Chain · chain 56
             </span>
-            <span>Not affiliated with Binance or BNB Chain</span>
           </div>
         </div>
       </footer>
