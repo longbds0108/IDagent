@@ -1541,3 +1541,15 @@
     gap: 4px;
   }
 }
+
+/* Wordmark logo (public/attested-logo.png) in the header */
+.sp-header__logo {
+  display: block;
+  height: 26px;
+  width: auto;
+}
+@media (max-width: 680px) {
+  .sp-header__logo {
+    height: 22px;
+  }
+}

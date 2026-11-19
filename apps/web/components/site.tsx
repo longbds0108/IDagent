@@ -32,8 +32,7 @@ export function SiteHeader() {
     <>
       <header className="sp-header sp-header--app sp-header--dark">
         <Link href="/" className="sp-header__brand" aria-label="attested home">
-          <BrandMark />
-          <span>attested</span>
+          <img src="/attested-logo.png" alt="attested" className="sp-header__logo" />
         </Link>
         <nav className="sp-nav sp-nav--app" aria-label="Main" style={{ ['--sp-nav-index' as string]: Math.max(active, 0), ['--sp-nav-n' as string]: NAV.length }}>
           <span className={`sp-nav__pill ${active < 0 ? 'is-hidden' : ''}`} aria-hidden />
