@@ -261,52 +261,84 @@ export default async function Landing() {
         </div>
       </section>
 
-      <footer className="sp-footer sp-dark" data-header-theme="dark">
-        <div className="sp-footer__top">
-          <div>
-            <strong>attested</strong>
-            <p>EVIDENCE-BACKED BUILDER PROFILES</p>
-            <ul className="sp-footer__limits">
-              <li>Agent ID is an eligibility signal, not proof of personhood</li>
-              <li>Attestations are signed statements, not proof of truth</li>
-              <li>Credentials prove issuance, not infallibility</li>
-            </ul>
-          </div>
-          <div className="sp-footer__nav">
-            <nav aria-label="Site">
-              <Link href="/builders">BUILDERS</Link>
-              <Link href="/organizations">ORGANIZATIONS</Link>
-              <Link href="/activity">ACTIVITY</Link>
-              <Link href="/reputation">REPUTATION</Link>
-              <Link href="/verify">VERIFY</Link>
-              <Link href="/dashboard">DASHBOARD</Link>
-            </nav>
-            {c ? (
-              <nav aria-label="Contracts on BscScan">
-                {(
-                  [
-                    ['PROFILES', c.profileRegistry],
-                    ['PROJECTS', c.projectRegistry],
-                    ['ATTESTATIONS', c.attestationRegistry],
-                    ['CREDENTIALS', c.credentialRegistry],
-                    ['AGENT ID', publicEnv.agentId],
-                  ] as const
-                ).map(([k, a]) => (
-                  <a key={k} href={explorerAddressUrl(a, publicEnv.explorerUrl)} target="_blank" rel="noreferrer">
-                    {k} ↗
-                  </a>
+      <footer className="sp-foot" data-header-theme="dark">
+        <div className="sp-foot__inner">
+          <div className="sp-foot__top">
+            <div className="sp-foot__brand">
+              <img src="/attested-logo.png" alt="attested" className="sp-foot__logo" />
+              <p className="sp-foot__tag">Verified builder profiles on BNB Smart Chain. Built on Agent ID.</p>
+              <div className="sp-foot__cta">
+                <Action href="/dashboard">CREATE YOUR PROFILE</Action>
+              </div>
+            </div>
+
+            <nav className="sp-foot__col" aria-label="Product">
+              <h4 className="sp-label">PRODUCT</h4>
+              <ul className="sp-foot__links">
+                {[
+                  ['/builders', 'Builders'],
+                  ['/organizations', 'Organizations'],
+                  ['/activity', 'Activity'],
+                  ['/reputation', 'Reputation'],
+                  ['/verify', 'Verify'],
+                  ['/dashboard', 'Dashboard'],
+                ].map(([href, label]) => (
+                  <li key={href}>
+                    <Link href={href}>{label}</Link>
+                  </li>
                 ))}
+              </ul>
+            </nav>
+
+            {c ? (
+              <nav className="sp-foot__col" aria-label="Contracts on BscScan">
+                <h4 className="sp-label">CONTRACTS</h4>
+                <ul className="sp-foot__links">
+                  {(
+                    [
+                      ['Profiles', c.profileRegistry],
+                      ['Projects', c.projectRegistry],
+                      ['Attestations', c.attestationRegistry],
+                      ['Credentials', c.credentialRegistry],
+                      ['Agent ID', publicEnv.agentId],
+                    ] as const
+                  ).map(([k, addr]) => (
+                    <li key={k}>
+                      <a href={explorerAddressUrl(addr, publicEnv.explorerUrl)} target="_blank" rel="noreferrer">
+                        <span>{k}</span>
+                        <span className="sp-foot__addr">
+                          {addr.slice(0, 6)}…{addr.slice(-4)} ↗
+                        </span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
               </nav>
             ) : null}
           </div>
-        </div>
-        <div className="sp-footer__wordmark" aria-hidden>
-          attested
-        </div>
-        <div className="sp-footer__bottom">
-          <span>© 2026 attested</span>
-          <span>BUILT ON BNB SMART CHAIN</span>
-          <span>NOT AFFILIATED WITH BINANCE OR BNB CHAIN</span>
+
+          <div className="sp-foot__notes">
+            <div>
+              <h5>Agent ID</h5>
+              <p>An eligibility signal. Not proof of personhood.</p>
+            </div>
+            <div>
+              <h5>Attestations</h5>
+              <p>Show who signed. Not proof that the claim is true.</p>
+            </div>
+            <div>
+              <h5>Credentials</h5>
+              <p>Show issuance by an approved organization. Not proof of truth.</p>
+            </div>
+          </div>
+
+          <div className="sp-foot__bottom">
+            <span>© 2026 attested</span>
+            <span className="sp-foot__status">
+              <i aria-hidden /> BNB Smart Chain · chain 56
+            </span>
+            <span>Not affiliated with Binance or BNB Chain</span>
+          </div>
         </div>
       </footer>
     </div>
