@@ -79,7 +79,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
       <section className="sp-enter grid gap-10 border-b border-line pb-10 pt-8 sm:pt-12 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-end">
         <div className="min-w-0">
           <p className="sp-label">
-            // BUILDER #{p.id}
+            BUILDER #{p.id}
             {p.agentLabel ? ` · ${p.agentLabel.toUpperCase()}.AI` : ''} · v{p.version}
           </p>
           <div className="mt-6 flex items-end gap-5">
@@ -120,7 +120,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
         </div>
 
         <aside className="sp-panel p-5 text-[13px]">
-          <p className="sp-label">// IDENTITY STATUS</p>
+          <p className="sp-label">IDENTITY STATUS</p>
           <dl className="mt-4 divide-y divide-line border-y border-line font-mono text-[12px]">
             {(
               [
@@ -165,7 +165,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
 
       {m?.skills.length ? (
         <section className="mt-12">
-          <p className="sp-label">// SKILLS</p>
+          <p className="sp-label">SKILLS</p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {m.skills.map((k) => (
               <span key={k} className="border border-line bg-surface/60 px-2.5 py-1.5 font-mono text-[12px]">
@@ -182,7 +182,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
       ) : null}
 
       <section className="mt-16 space-y-4">
-        <SectionHead kicker="// 01 · SELF-REPORTED" title="Projects" note="Published by the builder. Revisions create new records; history stays visible." />
+        <SectionHead kicker="01 · SELF-REPORTED" title="Projects" note="Published by the builder. Revisions create new records; history stays visible." />
         {activeProjects.length === 0 ? <Empty>No active projects.</Empty> : null}
         {activeProjects.map((pr) => (
           <ProjectCard
@@ -208,7 +208,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
 
       <section className="mt-16 space-y-4">
         <SectionHead
-          kicker="// 02 · PEER ATTESTED"
+          kicker="02 · PEER ATTESTED"
           title="Peer attestations"
           note="Signed statements by other Agent ID holders. Revoked ones stay visible."
           action={
@@ -234,7 +234,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
       </section>
 
       <section className="mt-16 space-y-4">
-        <SectionHead kicker="// 03 · APPROVED ISSUER" title="Credentials" note="Issued by organizations on the admin-approved allowlist." />
+        <SectionHead kicker="03 · APPROVED ISSUER" title="Credentials" note="Issued by organizations on the admin-approved allowlist." />
         {credentials.length === 0 ? <Empty>No credentials yet.</Empty> : null}
         {credentials.map((cr) => (
           <CredentialCard key={cr.id} cred={cr} />

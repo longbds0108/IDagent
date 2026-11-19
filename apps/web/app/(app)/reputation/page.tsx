@@ -98,7 +98,7 @@ export default async function ReputationPage({ searchParams }: { searchParams: P
     return (
       <div className="pb-10">
         <PageHero
-          kicker={`// REPUTATION · FORMULA ${FORMULA_VERSION.toUpperCase()} · ${data.optedIn ? 'OPTED IN' : 'NOT OPTED IN'}`}
+          kicker={`REPUTATION · FORMULA ${FORMULA_VERSION.toUpperCase()} · ${data.optedIn ? 'OPTED IN' : 'NOT OPTED IN'}`}
           title={name}
           lede={
             <>
@@ -128,7 +128,7 @@ export default async function ReputationPage({ searchParams }: { searchParams: P
           </p>
         ) : null}
         <section className="mt-14 space-y-5">
-          <SectionHead kicker="// HISTORY · REPLAYED AT EVERY RECORDED CHANGE" title="How it got here" />
+          <SectionHead kicker="HISTORY · REPLAYED AT EVERY RECORDED CHANGE" title="How it got here" />
           <div className="sp-panel p-5">
             <ScoreChart points={data.history} />
           </div>
@@ -152,7 +152,7 @@ export default async function ReputationPage({ searchParams }: { searchParams: P
   return (
     <div className="pb-10">
       <PageHero
-        kicker={`// REPUTATION · FORMULA ${FORMULA_VERSION.toUpperCase()} · OPT-IN`}
+        kicker={`REPUTATION · FORMULA ${FORMULA_VERSION.toUpperCase()} · OPT-IN`}
         title={
           <>
             A score you
@@ -178,7 +178,7 @@ export default async function ReputationPage({ searchParams }: { searchParams: P
 
       <section className="mt-16 space-y-4">
         <SectionHead
-          kicker="// OPTED-IN BUILDERS"
+          kicker="OPTED-IN BUILDERS"
           title="Scoreboard"
           note="Builders who opted in appear here."
           action={

@@ -30,7 +30,7 @@ export default async function OrganizationPage({ params }: { params: Promise<{ a
   return (
     <div className="pb-10">
       <PageHero
-        kicker={`// ORGANIZATION · ${o.active ? 'APPROVED ISSUER' : 'REMOVED FROM ALLOWLIST'}`}
+        kicker={`ORGANIZATION · ${o.active ? 'APPROVED ISSUER' : 'REMOVED FROM ALLOWLIST'}`}
         title={o.name || 'Unnamed issuer'}
         lede={
           <span className="font-mono text-[13px]">
@@ -58,7 +58,7 @@ export default async function OrganizationPage({ params }: { params: Promise<{ a
         ]}
       />
       <section className="mt-14 space-y-4">
-        <SectionHead kicker="// CREDENTIALS ISSUED" title="Credentials" note="Every credential this wallet issued, including revoked and expired ones." />
+        <SectionHead kicker="CREDENTIALS ISSUED" title="Credentials" note="Every credential this wallet issued, including revoked and expired ones." />
         {o.credentials.length === 0 ? <Empty>This issuer has not issued any credentials yet.</Empty> : null}
         {[...o.credentials].reverse().map((c) => {
           const s = subjects.get(c.subjectProfileId)

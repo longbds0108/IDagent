@@ -78,7 +78,7 @@ export default async function Activity({
   return (
     <div className="pb-10">
       <PageHero
-        kicker="// ACTIVITY · RECONSTRUCTED FROM CONTRACT STATE"
+        kicker="ACTIVITY · RECONSTRUCTED FROM CONTRACT STATE"
         title={
           <>
             Everything

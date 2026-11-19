@@ -149,7 +149,7 @@ export default async function Landing() {
 
       <section id="records" className="sp-records sp-dark" data-header-theme="dark" data-nav="records">
         <div className="sp-records__rail">
-          <p className="sp-kicker">// THE RECORDS</p>
+          <p className="sp-kicker">THE RECORDS</p>
           <h2>
             Three records
             <br />
@@ -211,7 +211,7 @@ export default async function Landing() {
           <h2>
             <TextScramble text="Built so a claim can't outrun its evidence" />
           </h2>
-          <p>// THE PROTOCOL</p>
+          <p>THE PROTOCOL</p>
         </div>
         <PrinciplesGrid items={PRINCIPLES} />
       </section>

@@ -31,11 +31,11 @@ function Proves({ level }: { level: TrustLevel }) {
   return (
     <div className="grid gap-3 md:grid-cols-2">
       <div className="sp-panel border-l-2 !border-l-ok p-5">
-        <p className="sp-label !text-ok">// INTEGRITY · WHAT THE CHAIN CONFIRMS</p>
+        <p className="sp-label !text-ok">INTEGRITY · WHAT THE CHAIN CONFIRMS</p>
         <p className="mt-2 text-[13.5px] leading-relaxed">{t.proves}</p>
       </div>
       <div className="border border-dashed border-line-strong p-5">
-        <p className="sp-label">// TRUTH OF THE CLAIM · NOT ESTABLISHED</p>
+        <p className="sp-label">TRUTH OF THE CLAIM · NOT ESTABLISHED</p>
         <p className="mt-2 text-[13.5px] leading-relaxed text-ink-2">{t.doesNotProve}</p>
       </div>
     </div>
@@ -45,7 +45,7 @@ function Proves({ level }: { level: TrustLevel }) {
 function Section({ title, children }: { title: ReactNode; children: ReactNode }) {
   return (
     <section className="sp-enter space-y-4">
-      <SectionHead kicker="// RESULT" title={title} />
+      <SectionHead kicker="RESULT" title={title} />
       {children}
     </section>
   )
@@ -264,7 +264,7 @@ export default async function VerifyPage({ searchParams }: { searchParams: Promi
   return (
     <div className="pb-10">
       <PageHero
-        kicker="// VERIFICATION CENTER · READ LIVE FROM BSC MAINNET, NOT A CACHE"
+        kicker="VERIFICATION CENTER · READ LIVE FROM BSC MAINNET, NOT A CACHE"
         title={
           <>
             Verify

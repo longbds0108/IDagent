@@ -27,7 +27,7 @@ export default async function Organizations() {
   return (
     <div className="pb-10">
       <PageHero
-        kicker={`// ORGANIZATIONS · ${active.length} APPROVED ISSUER${active.length === 1 ? '' : 'S'}`}
+        kicker={`ORGANIZATIONS · ${active.length} APPROVED ISSUER${active.length === 1 ? '' : 'S'}`}
         title={
           <>
             Who can
@@ -48,7 +48,7 @@ export default async function Organizations() {
       />
 
       <section className="mt-14 space-y-4">
-        <SectionHead kicker="// 01 · ALLOWLIST" title="Approved issuers" />
+        <SectionHead kicker="01 · ALLOWLIST" title="Approved issuers" />
         {failed ? <Notice tone="warn">Could not read the issuer allowlist from BNB Smart Chain right now.</Notice> : null}
         {!failed && active.length === 0 ? <Empty>No organizations have been approved yet.</Empty> : null}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -60,7 +60,7 @@ export default async function Organizations() {
 
       {removed.length ? (
         <section className="mt-14 space-y-4">
-          <SectionHead kicker="// 02 · HISTORY" title="Removed issuers" note="Their credentials no longer count as valid, but stay visible and verifiable." />
+          <SectionHead kicker="02 · HISTORY" title="Removed issuers" note="Their credentials no longer count as valid, but stay visible and verifiable." />
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {removed.map((o, i) => (
               <OrgCard key={o.address} o={o} index={i + 1} />

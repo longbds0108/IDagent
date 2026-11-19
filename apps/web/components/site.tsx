@@ -71,7 +71,7 @@ export function SiteFooter() {
     <footer className="sp-app-footer">
       <div className="sp-app-footer__grid">
         <div>
-          <h4>// WHAT RECORDS DO NOT PROVE</h4>
+          <h4>WHAT RECORDS DO NOT PROVE</h4>
           <ul>
             {LIMITATIONS.map((l) => (
               <li key={l}>{l}</li>
@@ -79,7 +79,7 @@ export function SiteFooter() {
           </ul>
         </div>
         <div>
-          <h4>// NAVIGATE</h4>
+          <h4>NAVIGATE</h4>
           <ul>
             <li><Link href="/">HOME</Link></li>
             {NAV.map(([href, label]) => (
@@ -88,7 +88,7 @@ export function SiteFooter() {
           </ul>
         </div>
         <div>
-          <h4>// CONTRACTS · BSC 56</h4>
+          <h4>CONTRACTS · BSC 56</h4>
           <ul>
             {entries.map(([k, a]) => (
               <li key={k}>

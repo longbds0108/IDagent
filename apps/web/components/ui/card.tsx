@@ -39,7 +39,7 @@ export function CardBody({ className, ...props }: HTMLAttributes<HTMLDivElement>
 export function Empty({ children }: { children: ReactNode }) {
   return (
     <div className="box-empty px-4 py-10 text-center">
-      <p className="sp-label mb-2">// EMPTY</p>
+      <p className="sp-label mb-2">EMPTY</p>
       <div className="text-[14px] text-ink-2">{children}</div>
     </div>
   )

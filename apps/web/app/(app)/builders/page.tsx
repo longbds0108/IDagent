@@ -65,7 +65,7 @@ export default async function Builders({ searchParams }: { searchParams: Promise
   return (
     <div className="pb-10">
       <PageHero
-        kicker={`// EXPLORE · ${all.length} PROFILE${all.length === 1 ? '' : 'S'} · LIVE FROM BSC`}
+        kicker={`EXPLORE · ${all.length} PROFILE${all.length === 1 ? '' : 'S'} · LIVE FROM BSC`}
         title={
           <>
             Builders
@@ -108,7 +108,7 @@ export default async function Builders({ searchParams }: { searchParams: Promise
 
       {topSkills.length ? (
         <div className="mt-4 flex flex-wrap gap-1.5">
-          <span className="sp-label mr-2 self-center">// SKILLS</span>
+          <span className="sp-label mr-2 self-center">SKILLS</span>
           {topSkills.map(([k, n]) => (
             <a
               key={k}
