@@ -1088,8 +1088,9 @@
 .sp-footer__wordmark {
   position: absolute;
   z-index: 0;
-  left: 20px;
-  right: 20px;
+  left: 0;
+  right: 0;
+  text-align: center;
   bottom: -0.17em;
   color: #232027;
   font-family: var(--sp-body);
@@ -1456,6 +1457,7 @@
 }
 
 .sp-app-footer__wordmark {
+  text-align: center;
   margin-top: 56px;
   color: #1f1c24;
   font-family: var(--sp-body);
