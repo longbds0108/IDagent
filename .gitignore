@@ -18,3 +18,5 @@ next-env.d.ts
 *.tsbuildinfo
 packages/contracts/deployments/local.json
 packages/contracts/deployments/local*.json
+.vercel
+.env*
