@@ -38,7 +38,7 @@ export function CardBody({ className, ...props }: HTMLAttributes<HTMLDivElement>
 
 export function Empty({ children }: { children: ReactNode }) {
   return (
-    <div className="border border-dashed border-line-strong px-4 py-10 text-center">
+    <div className="box-empty px-4 py-10 text-center">
       <p className="sp-label mb-2">// EMPTY</p>
       <div className="text-[14px] text-ink-2">{children}</div>
     </div>
@@ -60,7 +60,7 @@ export function Notice({
     bad: 'bg-bad-bg text-bad border-l-bad',
     ok: 'bg-ok-bg text-ok border-l-ok',
   }
-  return <div className={cn('border-l-2 px-4 py-3 text-[13.5px] leading-relaxed', tones[tone], className)}>{children}</div>
+  return <div className={cn('rounded-[14px] border-l-2 px-4 py-3 text-[13.5px] leading-relaxed', tones[tone], className)}>{children}</div>
 }
 
 /** Page hero in the landing's display style: mono kicker, huge tight headline, lede, optional aside. */

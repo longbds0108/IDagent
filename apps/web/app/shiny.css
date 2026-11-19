@@ -1555,3 +1555,91 @@
     height: 22px;
   }
 }
+
+/* =====================================================================
+   Box styles adopted from github.com/longbds0108/Defi (pages.css
+   .ui-card / .empty-state / .token-field and landing.css .hg-proto__card
+   and the animated gradient ring used on .hg-market-card / .hg-faq__item).
+   Boxes only: buttons and typography keep the attested design.
+   ===================================================================== */
+
+:root {
+  --box-ring: linear-gradient(110deg, #0b53bf, #6a8ad4, #cfe2ff, #e8e3d5, #6a8ad4, #0b53bf);
+}
+
+/* Standard panel = Defi .ui-card */
+.sp-panel {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(31, 28, 37, 0.94), rgba(20, 18, 25, 0.96));
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.14);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Animated gradient ring, shown on hover (Defi ::after mask technique) */
+.sp-panel::after,
+.sp-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: var(--box-ring);
+  background-size: 200% 100%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  animation: box-ring-flow 7s linear infinite;
+}
+.sp-panel:hover::after,
+.sp-card:hover::after {
+  opacity: 1;
+  animation-duration: 3s;
+}
+@keyframes box-ring-flow {
+  from { background-position: 0% 50%; }
+  to   { background-position: 200% 50%; }
+}
+
+/* Landing record cards = Defi .hg-proto__card (dark violet gradient, 22px radius) */
+.sp-card {
+  position: relative;
+  border: 1px solid var(--sp-line-dark);
+  border-radius: 22px;
+  background: linear-gradient(158deg, #2a2142 0%, #171026 72%);
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.14);
+}
+.sp-card--peer {
+  background: radial-gradient(circle at 78% 24%, rgba(155, 93, 229, 0.22), transparent 34%), linear-gradient(158deg, #2a2142 0%, #171026 72%);
+}
+.sp-card--issuer {
+  background: radial-gradient(circle at 78% 24%, rgba(63, 145, 255, 0.2), transparent 34%), linear-gradient(158deg, #2a2142 0%, #171026 72%);
+}
+
+/* Defi .empty-state: dashed hairline, 15px radius */
+.box-empty {
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 15px;
+}
+
+/* Defi .token-field: input well */
+.box-field {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 15px;
+  background: rgba(8, 7, 12, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-panel::after,
+  .sp-card::after {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}
