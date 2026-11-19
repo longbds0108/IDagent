@@ -17,10 +17,10 @@ const NAV = [
 
 export function BrandMark({ className = '' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden className={className}>
-      <rect x="1.5" y="1.5" width="21" height="21" rx="5" fill="currentColor" />
-      <path d="M7 12.5l3 3 7-7.5" fill="none" stroke="#17141b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="18.5" cy="18.5" r="2.6" fill="#9b5de5" />
+    <svg viewBox="0 0 64 64" aria-hidden className={className}>
+      <rect x="2" y="2" width="60" height="60" rx="14" fill="#111015" stroke="#2a2438" strokeWidth="2" />
+      <path d="M17 33.5 27.5 44 47 23" fill="none" stroke="#f4f2f7" strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="46" cy="46" r="6" fill="#9b5de5" stroke="#111015" strokeWidth="3" />
     </svg>
   )
 }
