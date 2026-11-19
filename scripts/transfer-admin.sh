@@ -11,6 +11,8 @@ set -euo pipefail
 RPC="${BSC_MAINNET_RPC_URL:-https://bsc-dataseed.bnbchain.org}"
 OLD_ADMIN="${OLD_ADMIN:-0xF9642B695D4DDf58599c953a791F94c2e96b6a57}"
 ACCOUNT="${DEPLOYER_ACCOUNT:-attested-deployer}"
+PW_ARGS=()
+if [[ -n "${KEYSTORE_PASSWORD_FILE:-}" ]]; then PW_ARGS=(--password-file "$KEYSTORE_PASSWORD_FILE"); fi
 CHAIN=$(cast chain-id --rpc-url "$RPC")
 [[ "$CHAIN" == "56" ]] || { echo "refusing: RPC is chain $CHAIN, need 56"; exit 1; }
 [[ "$(cast call 0x60b9262456de011f7d15a54cdd8c48baaa8b022f 'balanceOf(address)(uint256)' "$NEW_ADMIN" --rpc-url "$RPC")" != "0" ]] \
@@ -26,7 +28,7 @@ CONTRACTS=(
 echo "== 1/3 grant to $NEW_ADMIN"
 for c in "${CONTRACTS[@]}"; do
   for role in $ADMIN_ROLE $PAUSER_ROLE; do
-    cast send "$c" 'grantRole(bytes32,address)' "$role" "$NEW_ADMIN" --account "$ACCOUNT" --rpc-url "$RPC" >/dev/null
+    cast send "$c" 'grantRole(bytes32,address)' "$role" "$NEW_ADMIN" --account "$ACCOUNT" "${PW_ARGS[@]}" --rpc-url "$RPC" >/dev/null
     echo "  granted $role on $c"
   done
 done
@@ -37,10 +39,10 @@ for c in "${CONTRACTS[@]}"; do
   echo "  $c admin=$a pauser=$p"
   [[ "$a" == "true" && "$p" == "true" ]] || { echo "verification failed on $c; old admin left in place"; exit 1; }
 done
-echo "== 3/3 revoke from the old admin"
+echo "== 3/3 revoke from the old admin (pauser first: admin rights are needed to revoke either role)"
 for c in "${CONTRACTS[@]}"; do
-  for role in $ADMIN_ROLE $PAUSER_ROLE; do
-    cast send "$c" 'revokeRole(bytes32,address)' "$role" "$OLD_ADMIN" --account "$ACCOUNT" --rpc-url "$RPC" >/dev/null
+  for role in $PAUSER_ROLE $ADMIN_ROLE; do
+    cast send "$c" 'revokeRole(bytes32,address)' "$role" "$OLD_ADMIN" --account "$ACCOUNT" "${PW_ARGS[@]}" --rpc-url "$RPC" >/dev/null
     echo "  revoked $role from old admin on $c"
   done
 done

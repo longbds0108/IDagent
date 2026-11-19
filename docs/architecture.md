@@ -48,11 +48,11 @@ All four are non-upgradeable. `Pausable` stops new writes; revocations keep work
 
 | Role | Holder at deployment | Can | Cannot |
 |---|---|---|---|
-| `DEFAULT_ADMIN_ROLE` (all 4) | deployer `0xF964…6a57` | grant/revoke roles; approve/remove issuers; governance-revoke a credential | edit/delete profiles, projects or attestations; move funds (contracts hold none) |
-| `PAUSER_ROLE` (all 4) | deployer | pause/unpause new writes | block revocations |
+| `DEFAULT_ADMIN_ROLE` (all 4) | Agentic Wallet `0xa708…C241` (holds Agent ID `longaa.ai`) | grant/revoke roles; approve/remove issuers; governance-revoke a credential | edit/delete profiles, projects or attestations; move funds (contracts hold none) |
+| `PAUSER_ROLE` (all 4) | Agentic Wallet `0xa708…C241` | pause/unpause new writes | block revocations |
 | `ISSUER_ROLE` (CredentialRegistry) | none yet | issue credentials; revoke own | issue to own profile |
 
-Recommended: transfer `DEFAULT_ADMIN_ROLE` and `PAUSER_ROLE` to a multisig, then renounce from the deployer.
+Roles moved from the deployer `0xF964…6a57` to the Agentic Wallet on 2026-11-19 (grant, verify, then revoke on all four contracts). Recommended next step: move admin to a multisig.
 
 ## Off-chain signed preferences (phase 2)
 
