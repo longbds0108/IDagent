@@ -80,9 +80,30 @@ export class NotConfiguredError extends Error {
 // ---------------------------------------------------------------------------
 
 const cache = new Map<string, { at: number; value: Promise<unknown> }>()
-function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
+const refreshing = new Set<string>()
+/** Stale values older than this are not served at all: the caller waits for fresh data. */
+const MAX_STALE_MS = 10 * 60_000
+
+/**
+ * Stale-while-revalidate: within `ttlMs` the cached value is returned as is. After that, the stale
+ * value is still returned at once while one background refresh runs, so a visitor never waits for
+ * the chain reads that rebuild a list. Only the very first load (or a value older than MAX_STALE_MS)
+ * waits. If a refresh fails, the last good value stays in place.
+ */
+export function swr<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
   const hit = cache.get(key)
-  if (hit && Date.now() - hit.at < ttlMs) return hit.value as Promise<T>
+  const age = hit ? Date.now() - hit.at : Infinity
+  if (hit && age < ttlMs) return hit.value as Promise<T>
+  if (hit && age < MAX_STALE_MS) {
+    if (!refreshing.has(key)) {
+      refreshing.add(key)
+      fn()
+        .then((v) => cache.set(key, { at: Date.now(), value: Promise.resolve(v) }))
+        .catch(() => {})
+        .finally(() => refreshing.delete(key))
+    }
+    return hit.value as Promise<T>
+  }
   const value = fn().catch((e) => {
     cache.delete(key)
     throw e
@@ -90,6 +111,7 @@ function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T>
   cache.set(key, { at: Date.now(), value })
   return value
 }
+const cached = swr
 export function invalidateReads() {
   cache.clear()
 }

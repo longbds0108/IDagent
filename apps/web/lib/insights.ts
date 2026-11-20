@@ -15,6 +15,7 @@ import {
   getProjectsOf,
   listProfiles,
   protocolStats,
+  swr,
   type AttestationView,
   type CredentialView,
   type IssuerView,
@@ -120,15 +121,8 @@ async function all<T>(count: number, fetch: (id: bigint) => Promise<T | null>): 
   return out
 }
 
-let activityCache: { at: number; value: Promise<ActivityItem[]> } | null = null
 export function activityFeed(): Promise<ActivityItem[]> {
-  if (activityCache && Date.now() - activityCache.at < 20_000) return activityCache.value
-  const value = buildActivity().catch((e) => {
-    activityCache = null
-    throw e
-  })
-  activityCache = { at: Date.now(), value }
-  return value
+  return swr('activity', 20_000, buildActivity)
 }
 
 async function buildActivity(): Promise<ActivityItem[]> {
