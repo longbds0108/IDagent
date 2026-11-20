@@ -14,7 +14,8 @@
  *
  * Usage: APP=http://localhost:3300 RPC=http://127.0.0.1:8546 SHOTS=/tmp node e2e-local/user-journey.mjs
  */
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { createHmac } from 'node:crypto'
 import { chromium } from '@playwright/test'
 import { createTestClient, createWalletClient, defineChain, encodeAbiParameters, http, keccak256, pad, parseEther, toHex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
@@ -39,6 +40,8 @@ const DEV = {
 
 // ---------------------------------------------------------------- results
 const results = []
+const timeline = [] // step start/end in seconds from the start of the recording (VIDEO_DIR/timeline.json)
+let videoStart = null
 let current = ''
 async function step(name, fn, page) {
   current = name
@@ -53,6 +56,8 @@ async function step(name, fn, page) {
     console.log(`✗ ${name} — ${msg}`)
     if (page) await page.screenshot({ path: `${SHOTS}/fail-${results.length}.png`, fullPage: true }).catch(() => {})
   }
+  const origin = videoStart ?? t0
+  timeline.push({ name, ok: results[results.length - 1].ok, start: (t0 - origin) / 1000, end: (Date.now() - origin) / 1000 })
 }
 const expect = (cond, msg) => {
   if (!cond) throw new Error(msg)
@@ -70,25 +75,80 @@ async function giveAgentId(address, label) {
 // ---------------------------------------------------------------- pages
 const errorsByPersona = {}
 const holderOf = new Map() // page -> connected Agent ID wallet address
+// ONE_PAGE=1 runs every desktop persona on one shared page, so VIDEO_DIR gets one continuous recording.
+// Each persona reconnects its own Agent ID wallet before acting (connect() below).
+let sharedPage = null
 async function persona(browser, name, { mobile = false } = {}) {
-  const ctx = await browser.newContext(mobile ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1400, height: 1000 } })
-  const page = await ctx.newPage()
   errorsByPersona[name] = []
+  if (process.env.ONE_PAGE && !mobile && sharedPage) return sharedPage
+  // VIDEO_DIR=<dir> records the session as a webm clip (for the demo video).
+  const video = process.env.VIDEO_DIR ? { dir: process.env.VIDEO_DIR, size: { width: 1400, height: 1000 } } : undefined
+  const ctx = await browser.newContext(mobile ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1400, height: 1000 }, recordVideo: video })
+  if (video && videoStart === null) videoStart = Date.now()
+  const page = await ctx.newPage()
   page.on('pageerror', (e) => errorsByPersona[name].push(`${current}: ${e.message}`))
   page.on('console', (m) => {
     if (m.type() === 'error' && !/favicon|Failed to load resource|ERR_CONNECTION_REFUSED|bscscan/i.test(m.text())) errorsByPersona[name].push(`${current}: console: ${m.text().slice(0, 200)}`)
   })
+  if (process.env.ONE_PAGE && !mobile) sharedPage = page
   return page
 }
 
 // ---------------------------------------------------------------- UI helpers
-/** Connect an Agent ID wallet by address: the only way into the dashboard. */
-async function connect(page, address) {
+/** Sign in as an Agent ID wallet: enter the address, take the login prompt, sign its `baw` command, paste the signature. */
+async function connect(page, address, signer = defaultSigner) {
+  await page.context().clearCookies() // a previous persona's session must not carry over
   await page.goto(`${APP}/dashboard`)
+  await page.getByRole('heading', { level: 1, name: 'Connect to start' }).or(page.getByRole('heading', { name: 'Your Agent ID wallet' })).first().waitFor({ timeout: 20_000 })
   await page.getByLabel('Agentic Wallet address').fill(address)
-  await page.getByRole('button', { name: 'CONNECT', exact: true }).click()
+  await page.getByRole('button', { name: 'GET LOGIN PROMPT', exact: true }).click()
+  const pre = page.locator('pre', { hasText: 'baw sign-message preview' }).first()
+  await pre.waitFor({ timeout: 20_000 })
+  const cmd = await pre.innerText()
+  const signature = await signer(address, typedDataFromCommand(cmd))
+  await page.getByLabel('Signature', { exact: true }).fill(signature)
+  await page.getByRole('button', { name: 'SIGN IN', exact: true }).click()
   await page.getByRole('heading', { level: 1, name: 'Dashboard' }).waitFor({ timeout: 20_000 })
   holderOf.set(page, address)
+}
+
+/**
+ * A is a real mainnet holder that exists here only as an impersonated address, so there is no key to sign with.
+ * The harness mints the same signed session cookie the server issues after a successful sign-in (same AUTH_SECRET).
+ */
+const AUTH_SECRET = process.env.AUTH_SECRET ?? 'local-only-demo-secret-0123456789abcdef'
+async function connectBySession(page, address) {
+  const body = Buffer.from(JSON.stringify({ kind: 'session', address, exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url')
+  const mac = createHmac('sha256', AUTH_SECRET).update(body).digest('base64url')
+  await page.context().clearCookies()
+  await page.context().addCookies([{ name: 'attested_session', value: `${body}.${mac}`, url: APP, httpOnly: true, sameSite: 'Lax' }])
+  await page.goto(`${APP}/dashboard`)
+  await page.getByRole('heading', { level: 1, name: 'Dashboard' }).waitFor({ timeout: 20_000 })
+  holderOf.set(page, address)
+}
+
+/** Recover the EIP-712 data from the copied `baw sign-message` command. */
+function typedDataFromCommand(cmd) {
+  const raw = cmd.match(/--message '([\s\S]*)' --json/)?.[1]
+  expect(raw, 'no typed data in login command')
+  const req = JSON.parse(raw.replace(/'\\''/g, "'"))
+  const td = JSON.parse(req.params[1])
+  const { EIP712Domain: _domain, ...types } = td.types
+  return {
+    domain: td.domain,
+    types,
+    primaryType: td.primaryType,
+    message: {
+      address: td.message.address,
+      nonce: BigInt(td.message.nonce),
+      issuedAt: BigInt(td.message.issuedAt),
+      expiresAt: BigInt(td.message.expiresAt),
+    },
+  }
+}
+/** The local node signs for its unlocked test accounts (anvil), as the holder's agent wallet would. */
+async function defaultSigner(address, td) {
+  return wallet.signTypedData({ account: address, ...td })
 }
 
 /** Agent path: click → copy the baw preview → the holder sends exactly that call → paste tx hash → track. */
@@ -189,7 +249,7 @@ await step('Visitor: verify handles junk, unknown tx and unknown records', async
   await v.goto(`${APP}/verify?q=hello`)
   await v.getByText(/Could not understand/).waitFor()
   await v.goto(`${APP}/verify?q=0x${'1'.repeat(64)}`)
-  await v.getByText(/Transaction not found/).waitFor()
+  await v.getByText(/Transaction not found/).first().waitFor()
   await v.goto(`${APP}/verify?q=credential:99`)
   await v.getByText(/does not exist/).waitFor()
   await v.goto(`${APP}/p/nobody.ai`)
@@ -206,7 +266,7 @@ const n = await persona(browser, 'nonHolder')
 await step('Non-holder: connect is refused with a clear message', async () => {
   await n.goto(`${APP}/dashboard`)
   await n.getByLabel('Agentic Wallet address').fill(DEV.nonHolder)
-  await n.getByRole('button', { name: 'CONNECT', exact: true }).click()
+  await n.getByRole('button', { name: 'GET LOGIN PROMPT', exact: true }).click()
   await n.getByText(/This wallet has no Agent ID/).waitFor({ timeout: 20_000 })
   expect((await n.getByRole('heading', { level: 1, name: 'Dashboard' }).count()) === 0, 'non-holder got into the dashboard')
 }, n)
@@ -327,7 +387,7 @@ await step('X: second skill on the same project is allowed', async () => {
 // ---------------------------------------------------------------- A: real mainnet holder
 const a = await persona(browser, 'A')
 await step('A: connect and create profile through the agent', async () => {
-  await connect(a, A.address)
+  await connectBySession(a, A.address)
   await a.getByLabel('Display name').fill('Agent Builder A')
   await a.getByLabel(/Your Agent ID name/).fill(`${A.label}.ai`)
   await a.getByLabel('Skills').fill('rust, security-review, solidity')
@@ -351,6 +411,7 @@ await step('A: attest to W’s project', async () => {
 }, a)
 
 // ---------------------------------------------------------------- W: preferences (EIP-712 via baw)
+await connect(w, DEV.w.address)
 await step('W: opt in to reputation (signed with baw sign-message)', async () => {
   await w.goto(`${APP}/dashboard/settings`)
   await w.getByText('Show my reputation').click()
@@ -429,23 +490,32 @@ await step('Public profile: "View tx" resolves to a transaction', async () => {
 }, v)
 await step('Builders: builders listed and skill filter works', async () => {
   await v.goto(`${APP}/builders`)
-  await v.getByText('QA Builder W').waitFor({ timeout: 15_000 })
-  await v.getByText('Agent Builder A').waitFor()
+  await v.getByText('QA Builder W').first().waitFor({ timeout: 15_000 })
+  await v.getByText('Agent Builder A').first().waitFor()
   await v.goto(`${APP}/builders?skill=rust`)
-  await v.getByText('Agent Builder A').waitFor()
+  await v.getByText('Agent Builder A').first().waitFor()
   expect((await v.getByText('QA Builder W').count()) === 0, 'skill filter did not exclude W')
 }, v)
 await step('Reputation: opted-in builder listed; declined excluded', async () => {
   await v.goto(`${APP}/reputation`)
-  await v.getByText('QA Builder W').waitFor({ timeout: 15_000 })
+  await v.getByText('QA Builder W').first().waitFor({ timeout: 15_000 })
+  await v.waitForLoadState('networkidle') // let the page hydrate before clicking the link
   expect((await v.getByText('Agent Builder A').count()) === 0, 'non-opted-in builder listed')
-  await v.getByRole('link', { name: /Breakdown/ }).first().click()
+  // Follow the breakdown link's own href (a click right after hydration is racy in this harness).
+  const breakdownHref = await v.getByRole('link', { name: /Breakdown/ }).first().getAttribute('href')
+  expect(breakdownHref?.startsWith('/reputation?profile='), 'breakdown link has the wrong target')
+  await v.goto(`${APP}${breakdownHref}`)
   await v.getByText(/declined by the builder/).waitFor({ timeout: 15_000 })
 }, v)
 await step('Activity: filters by type, action and query', async () => {
   await v.goto(`${APP}/activity`)
   await v.getByText(/attested “solidity”/).first().waitFor({ timeout: 15_000 })
   await v.goto(`${APP}/activity?type=credential&action=revoked`)
+  // The server caches the activity feed for 20 s, so reload until the newest revocation shows.
+  for (let i = 0; i < 20 && !(await v.getByText(/Temporary badge.*was revoked/).count()); i++) {
+    await settle(v, 1500)
+    await v.reload()
+  }
   await v.getByText(/Temporary badge.*was revoked/).waitFor()
   expect((await v.locator('ol li', { hasText: 'attested' }).count()) === 0, 'type filter leaked attestations')
   await v.goto(`${APP}/activity?q=${DEV.x.address}`)
@@ -459,20 +529,21 @@ await step('Organizations: QA Org listed and its detail page opens', async () =>
 }, v)
 await step('Verify: builder response, credential status, tx decode, address', async () => {
   await v.goto(`${APP}/verify?q=attestation:2`)
-  await v.getByText(/accepted \(owner-signed, off-chain\)/).waitFor({ timeout: 15_000 })
+  await v.getByText(/accepted \(owner-signed, off-chain\)/).first().waitFor({ timeout: 15_000 })
   await v.goto(`${APP}/verify?q=attestation:3`)
-  await v.getByText(/declined \(owner-signed, off-chain\)/).waitFor({ timeout: 15_000 })
+  await v.getByText(/declined \(owner-signed, off-chain\)/).first().waitFor({ timeout: 15_000 })
   await v.goto(`${APP}/verify?q=credential:1`)
-  await v.getByText(/Currently valid: issued by an approved organization/).waitFor()
+  await v.getByText(/Currently valid: issued by an approved organization/).first().waitFor()
   await v.goto(`${APP}/verify?q=credential:2`)
-  await v.getByText(/Not currently valid/).waitFor()
+  await v.getByText(/Not currently valid/).first().waitFor()
   await v.goto(`${APP}/verify?q=${DEV.w.address}`)
-  await v.getByText(/Holds an Agent ID/).waitFor()
+  await v.getByText(/Holds an Agent ID/).first().waitFor()
   if (attestationTx) {
     await v.goto(`${APP}/verify?q=${attestationTx}`)
     await v.getByText('AttestationIssued').waitFor()
   }
 }, v)
+await connect(w, DEV.w.address)
 await step('W: hide from Explore and social links take effect', async () => {
   await w.goto(`${APP}/dashboard/settings`)
   await w.getByText('Hide me from Explore').click()
@@ -482,7 +553,7 @@ await step('W: hide from Explore and social links take effect', async () => {
   await w.getByText('SAVED ✓').waitFor({ timeout: 20_000 })
   await settle(w, 500)
   await v.goto(`${APP}/builders`)
-  await v.getByText('Agent Builder A').waitFor({ timeout: 15_000 })
+  await v.getByText('Agent Builder A').first().waitFor({ timeout: 15_000 })
   expect((await v.getByText('QA Builder W').count()) === 0, 'hidden builder still listed')
   await v.goto(`${APP}/p/qathree.ai`)
   await v.getByRole('heading', { level: 1, name: 'QA Builder W' }).waitFor()
@@ -490,7 +561,8 @@ await step('W: hide from Explore and social links take effect', async () => {
 }, v)
 await step('W: disconnect returns to the connect box', async () => {
   await w.goto(`${APP}/dashboard/settings`)
-  await w.getByRole('button', { name: 'Disconnect' }).click()
+  // Two buttons share this name (header chip and this card); the card is last in the DOM.
+  await w.getByRole('button', { name: 'Disconnect', exact: true }).last().click()
   await w.getByRole('heading', { name: 'Your Agent ID wallet' }).waitFor({ timeout: 15_000 })
 }, w)
 
@@ -511,5 +583,6 @@ await step('Mobile: key pages have no horizontal overflow', async () => {
 await browser.close()
 const failed = results.filter((r) => !r.ok)
 console.log(`\n${results.length - failed.length}/${results.length} user-journey steps passed`)
+if (process.env.VIDEO_DIR) writeFileSync(`${process.env.VIDEO_DIR}/timeline.json`, JSON.stringify(timeline, null, 2))
 for (const [p, errs] of Object.entries(errorsByPersona)) if (errs.length) console.log(`console/page errors for ${p}:\n  ${[...new Set(errs)].slice(0, 8).join('\n  ')}`)
 process.exit(failed.length ? 1 : 0)

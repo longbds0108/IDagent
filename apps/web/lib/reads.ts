@@ -81,6 +81,8 @@ export class NotConfiguredError extends Error {
 
 const cache = new Map<string, { at: number; value: Promise<unknown> }>()
 const refreshing = new Set<string>()
+/** Bumped on every invalidation, so a refresh that started before it cannot write old data back. */
+let generation = 0
 /** Stale values older than this are not served at all: the caller waits for fresh data. */
 const MAX_STALE_MS = 10 * 60_000
 
@@ -97,8 +99,11 @@ export function swr<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promis
   if (hit && age < MAX_STALE_MS) {
     if (!refreshing.has(key)) {
       refreshing.add(key)
+      const gen = generation
       fn()
-        .then((v) => cache.set(key, { at: Date.now(), value: Promise.resolve(v) }))
+        .then((v) => {
+          if (gen === generation) cache.set(key, { at: Date.now(), value: Promise.resolve(v) })
+        })
         .catch(() => {})
         .finally(() => refreshing.delete(key))
     }
@@ -114,6 +119,8 @@ export function swr<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promis
 const cached = swr
 export function invalidateReads() {
   cache.clear()
+  refreshing.clear()
+  generation++
 }
 
 // ---------------------------------------------------------------------------

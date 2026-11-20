@@ -1,8 +1,8 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { getAddress, isAddress, type Address } from 'viem'
-import { useQuery } from '@tanstack/react-query'
+import { createContext, useContext, useMemo, type ReactNode } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import type { Address } from 'viem'
 
 export interface AccountInfo {
   address: Address
@@ -14,73 +14,60 @@ export interface AccountInfo {
 }
 
 interface IdentityCtx {
-  /** Only Binance Agent ID wallets (Agentic Wallets) can connect. */
+  /** The signed-in Agentic Wallet (from the session cookie), or null. */
   address: Address | null
+  agentAddress: Address | null
   account: AccountInfo | null
   accountLoading: boolean
   accountError: string | null
-  setAgentAddress: (a: string | null) => void
-  agentAddress: Address | null
+  sessionLoading: boolean
   disconnect: () => void
 }
 
 const Ctx = createContext<IdentityCtx | null>(null)
-const KEY = 'attested.agentWallet'
 
 /**
- * The connected identity is one Binance Agent ID wallet address. It is remembered in this browser only
- * (not a login, no keys, no sessions) and is checked against the chain every time it loads.
+ * The connected identity is a session cookie set after the user signs a login message with their
+ * Agentic Wallet. The server checks the Agent ID again on every sign-in. The browser keeps no keys.
  */
 export function IdentityProvider({ children }: { children: ReactNode }) {
-  const [agentAddress, setAgent] = useState<Address | null>(null)
-
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem(KEY)
-      if (v && isAddress(v)) setAgent(getAddress(v))
-    } catch {
-      /* storage unavailable */
-    }
-  }, [])
-
-  const setAgentAddress = useCallback((a: string | null) => {
-    const v = a && isAddress(a) ? getAddress(a) : null
-    setAgent(v)
-    try {
-      if (v) localStorage.setItem(KEY, v)
-      else localStorage.removeItem(KEY)
-    } catch {
-      /* ignore */
-    }
-  }, [])
-
-  const q = useQuery({
-    queryKey: ['account', agentAddress],
-    enabled: !!agentAddress,
+  const qc = useQueryClient()
+  const session = useQuery({
+    queryKey: ['session'],
     queryFn: async () => {
-      const r = await fetch(`/api/account/${agentAddress}`, { cache: 'no-store' })
+      const r = await fetch('/api/auth/session', { cache: 'no-store' })
+      return (await r.json()) as { address: Address | null }
+    },
+    staleTime: 60_000,
+  })
+  const address = session.data?.address ?? null
+
+  const account = useQuery({
+    queryKey: ['account', address],
+    enabled: !!address,
+    queryFn: async () => {
+      const r = await fetch(`/api/account/${address}`, { cache: 'no-store' })
       const j = await r.json()
       if (!r.ok) throw new Error(j.error ?? 'Could not load account')
       return j as AccountInfo
     },
   })
 
-  // A remembered address that no longer holds an Agent ID is dropped.
-  useEffect(() => {
-    if (agentAddress && q.data && !q.data.agentIdHeld) setAgentAddress(null)
-  }, [agentAddress, q.data, setAgentAddress])
-
   const value = useMemo<IdentityCtx>(
     () => ({
-      address: agentAddress,
-      account: q.data ?? null,
-      accountLoading: q.isLoading,
-      accountError: q.error ? (q.error as Error).message : null,
-      setAgentAddress,
-      agentAddress,
-      disconnect: () => setAgentAddress(null),
+      address,
+      agentAddress: address,
+      account: account.data ?? null,
+      accountLoading: account.isLoading,
+      accountError: account.error ? (account.error as Error).message : null,
+      sessionLoading: session.isLoading,
+      disconnect: () => {
+        void fetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
+        qc.setQueryData(['session'], { address: null })
+        qc.removeQueries({ queryKey: ['account'] })
+      },
     }),
-    [agentAddress, q.data, q.isLoading, q.error, setAgentAddress],
+    [address, account.data, account.isLoading, account.error, session.isLoading, qc],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

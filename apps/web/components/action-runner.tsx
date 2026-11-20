@@ -115,6 +115,7 @@ export function ActionRunner({
           href: explorerTxUrl(hash, publicEnv.explorerUrl),
           linkLabel: isLocalRpc ? 'Local tx' : 'View tx',
         })
+        void fetch('/api/revalidate', { method: 'POST' }).catch(() => {})
         await qc.invalidateQueries()
         router.refresh()
         onConfirmed?.(hash)

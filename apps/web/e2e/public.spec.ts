@@ -54,7 +54,7 @@ test.describe('phase-2 pages', () => {
     await page.goto('/reputation')
     await expect(page.getByRole('heading', { level: 1, name: /can audit/ })).toBeVisible()
     for (const c of ['EVIDENCE', 'PEER', 'ISSUER']) await expect(page.getByText(c, { exact: true }).first()).toBeVisible()
-    await expect(page.getByText(/Each part is shown on its own/)).toBeVisible()
+    await expect(page.getByText(/Each part is shown on its own/).first()).toBeVisible()
   })
 
   test('/settings routes to the dashboard settings tab', async ({ page }) => {
@@ -74,7 +74,7 @@ test.describe('dashboard connection', () => {
   test('a wallet without Agent ID cannot connect', async ({ page }) => {
     await page.goto('/dashboard')
     await page.getByLabel('Agentic Wallet address').fill('0x000000000000000000000000000000000000dEaD')
-    await page.getByRole('button', { name: 'CONNECT', exact: true }).click()
+    await page.getByRole('button', { name: 'GET LOGIN PROMPT', exact: true }).click()
     await expect(page.getByText(/This wallet has no Agent ID/)).toBeVisible({ timeout: 20_000 })
   })
 })

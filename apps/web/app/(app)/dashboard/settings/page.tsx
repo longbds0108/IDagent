@@ -29,7 +29,7 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
 }
 
 export default function SettingsPage() {
-  const { address, account, agentAddress, setAgentAddress, disconnect } = useIdentity()
+  const { address, account, agentAddress, disconnect } = useIdentity()
   const prefs = usePreferences(address)
   const bundle = useMyProfile()
   const [t, setT] = useState<Toggles>({ reputationOptIn: false, hideFromExplore: false, hideSocialLinks: false, hideAvatar: false })

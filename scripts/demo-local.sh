@@ -51,6 +51,7 @@ NEXT_PUBLIC_CREDENTIAL_REGISTRY=$(j credentialRegistry)
 NEXT_PUBLIC_DEPLOY_BLOCK=$(j deployBlock)
 PUBLIC_APP_URL=http://localhost:$APP_PORT
 METADATA_DIR=$ROOT/apps/web/.data/metadata-local
+AUTH_SECRET=${AUTH_SECRET:-local-only-demo-secret-0123456789abcdef}
 ENV
 
 echo "▸ building and starting web app on :$APP_PORT"

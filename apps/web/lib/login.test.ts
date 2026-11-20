@@ -1,0 +1,62 @@
+import { describe, expect, it } from 'vitest'
+import { privateKeyToAccount } from 'viem/accounts'
+import { bawLoginCommand, loginPrompt, verifyLogin, type LoginMessage } from './login'
+
+const CONTRACT = '0xDaf663BF05701b509067cE2341B11FFbc227C9B9' as const
+const KEY = '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d'
+const account = privateKeyToAccount(KEY)
+
+const msg: LoginMessage = {
+  address: account.address,
+  nonce: '123456789012345678901234567890',
+  issuedAt: 1_795_000_000,
+  expiresAt: 1_795_000_300,
+}
+
+/** Recover the typed data from the exact command the user copies, as the agent's wallet would. */
+function typedDataFromCommand(command: string) {
+  const raw = command.match(/--message '([\s\S]*)' --json/)?.[1]
+  if (!raw) throw new Error('no --message in command')
+  const req = JSON.parse(raw.replace(/'\\''/g, "'"))
+  const td = JSON.parse(req.params[1])
+  const { EIP712Domain: _d, ...types } = td.types
+  return {
+    domain: td.domain,
+    types,
+    primaryType: td.primaryType as string,
+    message: {
+      address: td.message.address,
+      nonce: BigInt(td.message.nonce),
+      issuedAt: BigInt(td.message.issuedAt),
+      expiresAt: BigInt(td.message.expiresAt),
+    },
+  }
+}
+
+describe('sign-in by signature', () => {
+  it('builds an eth_signTypedData_v4 baw command for the login message', () => {
+    const cmd = bawLoginCommand(msg, CONTRACT)
+    expect(cmd).toMatch(/^baw sign-message preview --binanceChainId 56 --signType EIP712/)
+    expect(cmd).toContain('eth_signTypedData_v4')
+    expect(cmd).toContain('attested Login')
+  })
+
+  it('accepts a signature made from the copied command, and rejects a tampered one', async () => {
+    const cmd = bawLoginCommand(msg, CONTRACT)
+    const td = typedDataFromCommand(cmd)
+    const sig = await account.signTypedData(td)
+    expect(await verifyLogin(msg, CONTRACT, sig)).toBe(true)
+    // Another nonce or another wallet's signature must not pass.
+    expect(await verifyLogin({ ...msg, nonce: '1' }, CONTRACT, sig)).toBe(false)
+    const other = privateKeyToAccount('0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6')
+    const otherSig = await other.signTypedData(td)
+    expect(await verifyLogin(msg, CONTRACT, otherSig)).toBe(false)
+  })
+
+  it('wraps the command in a prompt the user can paste into an agent', () => {
+    const cmd = bawLoginCommand(msg, CONTRACT)
+    const prompt = loginPrompt(cmd)
+    expect(prompt).toContain(cmd)
+    expect(prompt).toMatch(/only the "signature" value/)
+  })
+})
