@@ -1475,12 +1475,26 @@
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.3s ease;
-  animation: box-ring-flow 7s linear infinite;
+  /* No animation until hover: an always-running animation repaints every panel on every frame. */
 }
 .sp-panel:hover::after,
 .sp-card:hover::after {
   opacity: 1;
-  animation-duration: 3s;
+  animation: box-ring-flow 3s linear infinite;
+}
+/* Skeleton for route loading states (opacity only, so it stays off the layout path). */
+.sp-skel {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  animation: sp-skel-pulse 1.4s ease-in-out infinite;
+}
+@keyframes sp-skel-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.9; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp-skel { animation: none; opacity: 0.7; }
 }
 @keyframes box-ring-flow {
   from { background-position: 0% 50%; }
