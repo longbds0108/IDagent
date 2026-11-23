@@ -53,6 +53,21 @@ describe('sign-in by signature', () => {
     expect(await verifyLogin(msg, CONTRACT, otherSig)).toBe(false)
   })
 
+  it('accepts a 64-byte signature without a recovery id, in either common form', async () => {
+    const td = typedDataFromCommand(bawLoginCommand(msg, CONTRACT))
+    const sig = await account.signTypedData(td)
+    const r = sig.slice(2, 66)
+    const s = sig.slice(66, 130)
+    const v = parseInt(sig.slice(130, 132), 16)
+    // r‖s only, as a wallet that does not return the recovery id.
+    expect(await verifyLogin(msg, CONTRACT, `${r}${s}`)).toBe(true)
+    // EIP-2098 compact: the parity bit is folded into the top bit of s.
+    const sTop = v === 28 ? (BigInt(`0x${s}`) | (1n << 255n)).toString(16).padStart(64, '0') : s
+    expect(await verifyLogin(msg, CONTRACT, `${r}${sTop}`)).toBe(true)
+    // A 64-byte value that is not this signature must still fail.
+    expect(await verifyLogin(msg, CONTRACT, `0x${'11'.repeat(64)}`)).toBe(false)
+  })
+
   it('wraps the command in a prompt the user can paste into an agent', () => {
     const cmd = bawLoginCommand(msg, CONTRACT)
     const prompt = loginPrompt(cmd)

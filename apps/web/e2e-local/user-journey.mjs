@@ -1,7 +1,8 @@
 /**
  * User journey through the real UI on the LOCAL chain-56 mirror (scripts/demo-local.sh with SKIP_E2E=1).
  * Only Agent ID wallets can connect. Every write follows the app's real flow:
- *   connect address → prepare → simulate → show `baw` command → "agent" sends it → paste tx hash.
+ *   connect address → prepare → simulate → show `baw` command → "agent" sends it → the app detects it on-chain
+ *   (profile creation), or the holder pastes the tx hash (everything else).
  * Preferences are signed with the same EIP-712 typed data that `baw sign-message` shows.
  *
  * Local test accounts (anvil public keys, local only):
@@ -152,7 +153,7 @@ async function defaultSigner(address, td) {
 }
 
 /** Agent path: click → copy the baw preview → the holder sends exactly that call → paste tx hash → track. */
-async function agentAction(page, buttonName, holder, scope = page) {
+async function agentAction(page, buttonName, holder, scope = page, { viaChain = false } = {}) {
   await scope.getByRole('button', { name: buttonName }).first().click()
   const pre = scope.locator('pre', { hasText: 'baw contract-call preview' }).first()
   const err = scope.locator('.bg-bad-bg').last()
@@ -168,13 +169,18 @@ async function agentAction(page, buttonName, holder, scope = page) {
   expect(/--gasLimit \d+/.test(cmd), 'baw command missing a gas cap')
   const gas = BigInt(cmd.match(/--gasLimit (\d+)/)[1])
   const hash = await wallet.sendTransaction({ account: holder, to, data, gas, chain })
+  if (viaChain) {
+    // The page notices the change on-chain by itself. Nothing is pasted.
+    await page.getByText(/done\./i).first().waitFor({ timeout: 60_000 })
+    return hash
+  }
   await scope.getByLabel('Transaction hash').fill(hash)
   await scope.getByRole('button', { name: 'Track' }).click()
   // Inline notice, or the toast when the form unmounts after success (e.g. a new profile).
   await page.getByText(/Done in block|done \(block/).first().waitFor({ timeout: 40_000 })
   return hash
 }
-const walletAction = (page, buttonName, scope = page) => agentAction(page, buttonName, holderOf.get(page), scope)
+const walletAction = (page, buttonName, scope = page, opts) => agentAction(page, buttonName, holderOf.get(page), scope, opts)
 
 /** Sign the typed data that `baw sign-message` shows, then paste the signature into the app. */
 async function signPreference(scope, holderKey) {
@@ -251,7 +257,7 @@ await step('Visitor: verify handles junk, unknown tx and unknown records', async
   await v.goto(`${APP}/verify?q=0x${'1'.repeat(64)}`)
   await v.getByText(/Transaction not found/).first().waitFor()
   await v.goto(`${APP}/verify?q=credential:99`)
-  await v.getByText(/does not exist/).waitFor()
+  await v.getByText(/does not exist/).first().waitFor()
   await v.goto(`${APP}/p/nobody.ai`)
   await v.getByText('Profile not found').waitFor()
 }, v)
@@ -279,23 +285,29 @@ await step('W: connect Agent ID wallet', async () => {
 }, w)
 await step('W: bio with an e-mail is blocked', async () => {
   await w.getByLabel('Display name').fill('QA Builder W')
-  await w.getByLabel(/Your Agent ID name/).fill('qathree.ai')
   await w.getByLabel('Bio').fill('Contact me at qa@example.com')
   return expectRefused(w, 'Create profile on-chain', /e-mail/i)
 }, w)
-await step('W: claiming someone else’s .ai name is refused', async () => {
+await step('W: create profile (agent sends it, page detects it on-chain)', async () => {
   await w.getByLabel('Bio').fill('Full-stack builder testing attested.')
-  await w.getByLabel(/Your Agent ID name/).fill(`${A.label}.ai`)
-  return expectRefused(w, 'Create profile on-chain', /does not own that \.ai name/)
-}, w)
-await step('W: create profile with own .ai name (agent confirms, receipt on-chain)', async () => {
-  await w.getByLabel(/Your Agent ID name/).fill('qathree.ai')
   await w.getByLabel('Skills').fill('Solidity, Next.js, UI Design')
+  await w.locator('details', { hasText: 'Links and avatar' }).locator('summary').click()
   await w.getByLabel('GitHub').fill('https://github.com/qa-three')
-  await walletAction(w, 'Create profile on-chain')
+  await walletAction(w, 'Create profile on-chain', w, { viaChain: true })
   await settle(w, 1500)
   await w.reload()
-  await w.getByText('Your profile').waitFor({ timeout: 15_000 })
+  await w.getByText('Your profile').first().waitFor({ timeout: 15_000 })
+}, w)
+await step('W: claiming someone else’s .ai name is refused', async () => {
+  await w.getByLabel(/Your Agent ID name/).fill(`${A.label}.ai`)
+  return expectRefused(w, 'Bind .ai name', /does not own that \.ai name/)
+}, w)
+await step('W: bind own .ai name (agent confirms, receipt on-chain)', async () => {
+  await w.getByLabel(/Your Agent ID name/).fill('qathree.ai')
+  await walletAction(w, 'Bind .ai name')
+  await settle(w, 1500)
+  await w.reload()
+  await w.getByText('qathree.ai').first().waitFor({ timeout: 15_000 })
 }, w)
 await step('W: edit profile publishes version 2', async () => {
   await w.getByRole('button', { name: 'Edit profile' }).click()
@@ -389,9 +401,12 @@ const a = await persona(browser, 'A')
 await step('A: connect and create profile through the agent', async () => {
   await connectBySession(a, A.address)
   await a.getByLabel('Display name').fill('Agent Builder A')
-  await a.getByLabel(/Your Agent ID name/).fill(`${A.label}.ai`)
   await a.getByLabel('Skills').fill('rust, security-review, solidity')
-  await walletAction(a, 'Create profile on-chain')
+  await walletAction(a, 'Create profile on-chain', a, { viaChain: true })
+  await a.reload()
+  await a.getByText('Your profile').first().waitFor({ timeout: 15_000 })
+  await a.getByLabel(/Your Agent ID name/).fill(`${A.label}.ai`)
+  await walletAction(a, 'Bind .ai name')
 }, a)
 await step('A: a transaction that is not the prepared one is rejected', async () => {
   await a.goto(`${APP}/dashboard/projects`)

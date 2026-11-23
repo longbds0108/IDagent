@@ -1,6 +1,5 @@
 import { verifyTypedData, type Address, type Hex } from 'viem'
 import { BSC_CHAIN_ID } from '@skillproof/shared'
-import { normalizeSignature } from './preferences'
 
 /**
  * Sign-in by signature: the app issues a short-lived login message, the user's Agentic Wallet signs
@@ -63,21 +62,41 @@ export function loginPrompt(command: string): string {
   ].join('\n')
 }
 
+/**
+ * The 65-byte forms a returned signature can take. Agents often send only r‖s (64 bytes) and no
+ * recovery id, so the server tries both v values, plus the EIP-2098 compact form. The user pastes
+ * just the signature; no second field is needed.
+ */
+export function signatureCandidates(signature: string): Hex[] {
+  const s = signature.trim().toLowerCase()
+  const hex = s.startsWith('0x') ? s : `0x${s}`
+  if (!/^0x[0-9a-f]+$/.test(hex)) return []
+  if (hex.length === 132) return [hex as Hex]
+  if (hex.length !== 130) return []
+  const body = hex.slice(2)
+  const r = body.slice(0, 64)
+  const yParityAndS = BigInt(`0x${body.slice(64)}`)
+  const yParity = Number(yParityAndS >> 255n)
+  const sWithoutParity = (yParityAndS & ((1n << 255n) - 1n)).toString(16).padStart(64, '0')
+  return [`0x${body}1b`, `0x${body}1c`, `0x${r}${sWithoutParity}${(27 + yParity).toString(16)}`] as Hex[]
+}
+
 /** Pure check used by the server: does `signature` prove `m` was signed by `m.address`? */
 export async function verifyLogin(m: LoginMessage, verifyingContract: Address, signature: string): Promise<boolean> {
-  const sig = normalizeSignature(signature)
-  if (!sig) return false
-  try {
-    return await verifyTypedData({
-      address: m.address,
-      domain: loginDomain(verifyingContract),
-      types: LOGIN_TYPES,
-      primaryType: 'Login',
-      message: { address: m.address, nonce: BigInt(m.nonce), issuedAt: BigInt(m.issuedAt), expiresAt: BigInt(m.expiresAt) },
-      signature: sig as Hex,
-    })
-  } catch {
-    // A malformed signature is a failed check, not a server error.
-    return false
+  for (const sig of signatureCandidates(signature)) {
+    try {
+      const ok = await verifyTypedData({
+        address: m.address,
+        domain: loginDomain(verifyingContract),
+        types: LOGIN_TYPES,
+        primaryType: 'Login',
+        message: { address: m.address, nonce: BigInt(m.nonce), issuedAt: BigInt(m.issuedAt), expiresAt: BigInt(m.expiresAt) },
+        signature: sig,
+      })
+      if (ok) return true
+    } catch {
+      // A malformed candidate is a failed check for that form, not a server error.
+    }
   }
+  return false
 }

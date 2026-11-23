@@ -2,7 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { isHex, type Hex } from 'viem'
 import { ACTION_LABELS, AGENT_ID_GATED, explorerTxUrl, type SkillProofAction } from '@skillproof/shared'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,7 @@ type Phase =
   | { k: 'agent'; action: SkillProofAction; fee: string | null; to: string; data: Hex; preview: string }
   | { k: 'pending'; hash: Hex }
   | { k: 'confirmed'; hash: Hex; block: bigint }
+  | { k: 'detected' }
   | { k: 'reverted'; hash: Hex }
   | { k: 'error'; message: string }
 
@@ -30,10 +31,14 @@ export function gasWithMargin(estimate: bigint): bigint {
   return g < 21_000n ? 21_000n : g > 15_000_000n ? 15_000_000n : g
 }
 
+const DETECT_EVERY_MS = 4_000
+const DETECT_MAX_TRIES = 150 // about 10 minutes
+
 /**
  * One on-chain write, always through the user's Agent ID wallet:
  * 1. Simulate. 2. Show the `baw` command. 3. The user's agent runs it and approves in the Binance App.
- * 4. The user pastes the transaction hash. 5. Success is shown only after an on-chain receipt.
+ * 4. The page notices the change on-chain by itself (when `detect` is given), or the user pastes the
+ *    transaction hash. 5. Success is shown only after the chain confirms the change.
  */
 export function ActionRunner({
   prepare,
@@ -42,13 +47,16 @@ export function ActionRunner({
   disabled,
   onConfirmed,
   compact,
+  detect,
 }: {
   prepare: () => Promise<SkillProofAction>
   label?: string
   variant?: 'primary' | 'danger' | 'secondary' | 'accent'
   disabled?: boolean
-  onConfirmed?: (hash: Hex) => void
+  onConfirmed?: (hash?: Hex) => void
   compact?: boolean
+  /** Resolves true once the change is on-chain. Polled while the agent is working. */
+  detect?: () => Promise<boolean>
 }) {
   const { address, account } = useIdentity()
   const qc = useQueryClient()
@@ -57,6 +65,31 @@ export function ActionRunner({
   const [phase, setPhase] = useState<Phase>({ k: 'idle' })
   const [pasted, setPasted] = useState('')
   const contracts = deployedContracts()
+  const detectRef = useRef(detect)
+  detectRef.current = detect
+  const finishedRef = useRef(false)
+
+  // Watch the chain while the agent works, so the user does not have to paste anything.
+  useEffect(() => {
+    if (phase.k !== 'agent' || !detectRef.current) return
+    let tries = 0
+    let stopped = false
+    const timer = setInterval(async () => {
+      if (stopped || ++tries > DETECT_MAX_TRIES) return clearInterval(timer)
+      try {
+        if (await detectRef.current!()) {
+          clearInterval(timer)
+          if (!stopped) await succeed({ k: 'detected' }, `${name} done.`)
+        }
+      } catch {
+        // A failed poll is retried on the next tick.
+      }
+    }, DETECT_EVERY_MS)
+    return () => {
+      stopped = true
+      clearInterval(timer)
+    }
+  }, [phase.k])
 
   if (!contracts) return <Notice tone="warn">Contracts are not configured.</Notice>
   if (!address) return <Notice>Connect your Agent ID wallet first.</Notice>
@@ -65,6 +98,7 @@ export function ActionRunner({
   const name = label ?? 'Continue'
 
   async function start() {
+    finishedRef.current = false
     setPhase({ k: 'preparing' })
     let action: SkillProofAction
     try {
@@ -94,7 +128,20 @@ export function ActionRunner({
     setPhase({ k: 'agent', action, fee: sim.feeBnb ?? null, to: cd.to, data: cd.data, preview: cd.baw.preview })
   }
 
+  /** Shared success path: the change is on-chain. Runs once, however it was detected. */
+  async function succeed(next: Phase, text: string, hash?: Hex) {
+    if (finishedRef.current) return
+    finishedRef.current = true
+    setPhase(next)
+    toast({ tone: 'ok', text, href: hash ? explorerTxUrl(hash, publicEnv.explorerUrl) : undefined, linkLabel: isLocalRpc ? 'Local tx' : 'View tx' })
+    void fetch('/api/revalidate', { method: 'POST' }).catch(() => {})
+    await qc.invalidateQueries()
+    router.refresh()
+    onConfirmed?.(hash)
+  }
+
   async function track(hash: Hex, expect: { to: string; data: Hex }) {
+    finishedRef.current = false
     setPhase({ k: 'pending', hash })
     try {
       // Only accept the transaction we prepared, sent from this wallet.
@@ -108,17 +155,7 @@ export function ActionRunner({
       }
       const r = await publicClient.waitForTransactionReceipt({ hash, timeout: 180_000 })
       if (r.status === 'success') {
-        setPhase({ k: 'confirmed', hash, block: r.blockNumber })
-        toast({
-          tone: 'ok',
-          text: `${name} done (block ${r.blockNumber}).`,
-          href: explorerTxUrl(hash, publicEnv.explorerUrl),
-          linkLabel: isLocalRpc ? 'Local tx' : 'View tx',
-        })
-        void fetch('/api/revalidate', { method: 'POST' }).catch(() => {})
-        await qc.invalidateQueries()
-        router.refresh()
-        onConfirmed?.(hash)
+        await succeed({ k: 'confirmed', hash, block: r.blockNumber }, `${name} done (block ${r.blockNumber}).`, hash)
       } else {
         setPhase({ k: 'reverted', hash })
         toast({ tone: 'bad', text: `${name} failed. Nothing changed.`, href: explorerTxUrl(hash, publicEnv.explorerUrl), linkLabel: 'View tx' })
@@ -154,11 +191,16 @@ export function ActionRunner({
             <li>Turn on Developer Mode in the Binance App (Agentic Wallet → Settings).</li>
             <li>Ask your AI agent to run this preview and show you the result.</li>
             <li>If it looks right, the agent runs <code className="font-mono">execute</code>. Approve in the Binance App if asked.</li>
-            <li>Paste the transaction hash below.</li>
+            {detectRef.current ? (
+              <li>Wait here. This page updates by itself once the change is on-chain.</li>
+            ) : (
+              <li>Paste the transaction hash below.</li>
+            )}
           </ol>
           <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all border border-line bg-bg p-3 font-mono text-[11.5px] text-ink-2">
             {phase.preview}
           </pre>
+          {detectRef.current ? <p className="text-[12.5px] text-ink-3">Already sent it? Paste the transaction hash to check it now.</p> : null}
           <div className="flex flex-wrap gap-2">
             <Input
               value={pasted}
@@ -188,6 +230,7 @@ export function ActionRunner({
           </a>
         </Notice>
       ) : null}
+      {phase.k === 'detected' ? <Notice tone="ok">Done. The change is on-chain.</Notice> : null}
       {phase.k === 'confirmed' ? (
         <Notice tone="ok">
           Done in block {phase.block.toString()}.{' '}

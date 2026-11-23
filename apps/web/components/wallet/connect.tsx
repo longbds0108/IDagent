@@ -5,7 +5,6 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { isAddress } from 'viem'
 import { useIdentity } from './identity'
-import { normalizeSignature } from '@/lib/preferences'
 import { shortAddress } from '@/lib/utils'
 
 export function MainnetBadge() {
@@ -47,6 +46,8 @@ interface Prompt {
   expiresAt: number
 }
 
+const SIGNATURE_RE = /^(0x)?[0-9a-fA-F]{128}([0-9a-fA-F]{2})?$/
+
 /**
  * Sign in with the Agentic Wallet, in two steps:
  * 1. Enter the wallet address. The app checks the Agent ID and gives you a prompt to copy.
@@ -57,11 +58,10 @@ export function ConnectPanel() {
   const [prompt, setPrompt] = useState<Prompt | null>(null)
   const [value, setValue] = useState('')
   const [sig, setSig] = useState('')
-  const [rec, setRec] = useState('')
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const normalized = normalizeSignature(sig, rec)
+  const validSig = SIGNATURE_RE.test(sig)
 
   async function getPrompt(e: React.FormEvent) {
     e.preventDefault()
@@ -86,14 +86,14 @@ export function ConnectPanel() {
   }
 
   async function signIn() {
-    if (!prompt || !normalized) return
+    if (!prompt || !validSig) return
     setBusy(true)
     setError(null)
     try {
       const r = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ challenge: prompt.challenge, signature: normalized }),
+        body: JSON.stringify({ challenge: prompt.challenge, signature: sig }),
       })
       const j = await r.json().catch(() => ({}))
       if (!r.ok) {
@@ -128,13 +128,15 @@ export function ConnectPanel() {
       {!prompt ? (
         <>
           <p className="mt-4 text-[15px] leading-relaxed text-ink-2">
-            Only Binance Agent ID wallets can connect. Paste your Agentic Wallet address.
+            You need two things: the Binance App with an Agentic Wallet and an Agent ID, and an AI agent with the{' '}
+            <code className="font-mono text-peer">baw</code> CLI installed.
           </p>
+          <p className="mt-3 text-[14px] leading-relaxed text-ink-2">Step 1: paste your wallet address.</p>
           <form className="mt-8 space-y-3" onSubmit={getPrompt}>
             <input
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder="0x… Agentic Wallet address"
+              placeholder="0x… your wallet address"
               aria-label="Agentic Wallet address"
               className="box-field h-12 w-full px-4 font-mono text-[14px] focus:border-accent focus:outline-none"
             />
@@ -149,10 +151,11 @@ export function ConnectPanel() {
         </>
       ) : (
         <>
-          <ol className="mt-4 list-decimal space-y-1 pl-5 text-[14px] leading-relaxed text-ink-2">
-            <li>Copy the prompt and send it to your AI agent.</li>
-            <li>The agent runs it and signs. Approve in the Binance App if asked.</li>
-            <li>Paste the signature below and sign in.</li>
+          <p className="mt-4 text-[14px] leading-relaxed text-ink-2">Step 2: send this prompt to your AI agent.</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-[14px] leading-relaxed text-ink-2">
+            <li>Copy the prompt below.</li>
+            <li>Send it to your AI agent. Approve the request in the Binance App if it asks.</li>
+            <li>Copy the signature the agent sends back and paste it under Step 3.</li>
           </ol>
           <pre className="mt-5 max-h-44 overflow-auto whitespace-pre-wrap break-all border border-line bg-bg p-3 font-mono text-[11.5px] text-ink-2">
             {prompt.prompt}
@@ -165,24 +168,18 @@ export function ConnectPanel() {
           </button>
 
           <div className="mt-6 space-y-3">
+            <p className="text-[14px] leading-relaxed text-ink-2">Step 3: paste the signature.</p>
             <textarea
               value={sig}
               onChange={(e) => setSig(e.target.value.trim())}
-              placeholder="Signature (0x…)"
+              placeholder="0x… signature"
               aria-label="Signature"
               className="box-field min-h-16 w-full px-4 py-3 font-mono text-[12px] focus:border-accent focus:outline-none"
             />
-            <input
-              value={rec}
-              onChange={(e) => setRec(e.target.value.trim())}
-              placeholder="Recovery id (only if the signature is 64 bytes)"
-              aria-label="Signature recovery"
-              className="box-field h-10 w-full px-4 font-mono text-[12px] focus:border-accent focus:outline-none"
-            />
-            {sig && !normalized ? <p className="text-[12px] text-bad">Not a valid signature yet.</p> : null}
+            {sig && !validSig ? <p className="text-[12px] text-bad">This does not look like a full signature. Copy the whole value from the agent.</p> : null}
             {error ? <p className="text-[13px] text-bad">{error}</p> : null}
             <div className="flex gap-3">
-              <button type="button" onClick={signIn} disabled={!normalized || busy} className="sp-action flex-1 disabled:opacity-40">
+              <button type="button" onClick={signIn} disabled={!validSig || busy} className="sp-action flex-1 disabled:opacity-40">
                 <span>{busy ? 'SIGNING IN…' : 'SIGN IN'}</span>
                 <span className="sp-action__icon" aria-hidden>
                   ↗
@@ -193,7 +190,6 @@ export function ConnectPanel() {
                 onClick={() => {
                   setPrompt(null)
                   setSig('')
-                  setRec('')
                   setError(null)
                 }}
                 className="sp-action sp-action--compact"
@@ -207,10 +203,10 @@ export function ConnectPanel() {
 
       <div className="mt-8 border-t border-line pt-5 text-[13px] leading-relaxed text-ink-3">
         <p>
-          Find your address: ask your AI agent to run <code className="font-mono text-peer">baw wallet address --json</code>, then pick
+          Not sure of your address? Ask your AI agent to run <code className="font-mono text-peer">baw wallet address --json</code> and use
           the BSC (56) entry.
         </p>
-        <p className="mt-2">We never ask for keys, QR codes or passwords. The signature only proves this wallet is yours.</p>
+        <p className="mt-2">We never ask for keys or passwords. The signature only proves this wallet is yours.</p>
       </div>
     </section>
   )
