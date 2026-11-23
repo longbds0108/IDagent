@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { isAddress } from 'viem'
 import { useIdentity } from './identity'
+import { loginSecretHash } from '@/lib/login'
 import { shortAddress } from '@/lib/utils'
 
 export function MainnetBadge() {
@@ -44,6 +45,14 @@ interface Prompt {
   challenge: string
   prompt: string
   expiresAt: number
+  pid: string | null
+}
+
+const POLL_MS = 2_000
+
+function randomSecret() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32))
+  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
 const SIGNATURE_RE = /^(0x)?[0-9a-fA-F]{128}([0-9a-fA-F]{2})?$/
@@ -61,7 +70,49 @@ export function ConnectPanel() {
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const secretRef = useRef<string | null>(null)
   const validSig = SIGNATURE_RE.test(sig)
+
+  // While the agent signs, ask the server whether this login was approved. The session opens here.
+  useEffect(() => {
+    if (!prompt?.pid || !secretRef.current) return
+    const pid = prompt.pid
+    const secret = secretRef.current
+    let stopped = false
+    const timer = setInterval(async () => {
+      if (Date.now() / 1000 > prompt.expiresAt) {
+        clearInterval(timer)
+        secretRef.current = null
+        setPrompt(null)
+        setError('This login prompt expired. Start again.')
+        return
+      }
+      const r = await fetch('/api/auth/status', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ pid, secret }),
+      })
+        .then((x) => x.json())
+        .catch(() => null)
+      if (stopped || !r) return
+      if (r.status === 'signed-in') {
+        clearInterval(timer)
+        secretRef.current = null
+        await qc.invalidateQueries({ queryKey: ['session'] })
+      } else if (r.status === 'expired') {
+        clearInterval(timer)
+        secretRef.current = null
+        setPrompt(null)
+        setError('This login prompt expired. Start again.')
+      } else if (r.error) {
+        setError(r.error)
+      }
+    }, POLL_MS)
+    return () => {
+      stopped = true
+      clearInterval(timer)
+    }
+  }, [prompt?.pid, prompt?.expiresAt, qc])
 
   async function getPrompt(e: React.FormEvent) {
     e.preventDefault()
@@ -70,14 +121,20 @@ export function ConnectPanel() {
     setBusy(true)
     setError(null)
     try {
+      // The secret never leaves the browser. Only its hash is sent, so the agent cannot open the session.
+      const secret = randomSecret()
+      secretRef.current = secret
       const r = await fetch('/api/auth/challenge', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ address: addr }),
+        body: JSON.stringify({ address: addr, secretHash: await loginSecretHash(secret) }),
       })
       const j = await r.json().catch(() => ({}))
-      if (!r.ok) return setError(j.error ?? 'Could not check this wallet. Try again.')
-      setPrompt({ address: addr, challenge: j.challenge, prompt: j.prompt, expiresAt: j.expiresAt })
+      if (!r.ok) {
+        secretRef.current = null
+        return setError(j.error ?? 'Could not check this wallet. Try again.')
+      }
+      setPrompt({ address: addr, challenge: j.challenge, prompt: j.prompt, expiresAt: j.expiresAt, pid: j.pid ?? null })
     } catch {
       setError('Could not check this wallet. Try again.')
     } finally {
@@ -154,9 +211,14 @@ export function ConnectPanel() {
           <p className="mt-4 text-[14px] leading-relaxed text-ink-2">Step 2: send this prompt to your AI agent.</p>
           <ol className="mt-2 list-decimal space-y-1 pl-5 text-[14px] leading-relaxed text-ink-2">
             <li>Copy the prompt below.</li>
-            <li>Send it to your AI agent. Approve the request in the Binance App if it asks.</li>
-            <li>Copy the signature the agent sends back and paste it under Step 3.</li>
+            <li>Paste it to your AI agent. Approve the request in the Binance App if it asks.</li>
+            <li>This page signs you in by itself when the agent finishes.</li>
           </ol>
+          {prompt.pid ? (
+            <p className="mt-3 font-mono text-[12px] uppercase tracking-[0.04em] text-peer" role="status">
+              Waiting for your agent…
+            </p>
+          ) : null}
           <pre className="mt-5 max-h-44 overflow-auto whitespace-pre-wrap break-all border border-line bg-bg p-3 font-mono text-[11.5px] text-ink-2">
             {prompt.prompt}
           </pre>
@@ -168,7 +230,9 @@ export function ConnectPanel() {
           </button>
 
           <div className="mt-6 space-y-3">
-            <p className="text-[14px] leading-relaxed text-ink-2">Step 3: paste the signature.</p>
+            <p className="text-[14px] leading-relaxed text-ink-2">
+              {prompt.pid ? 'Not signed in after a minute? Paste the signature here instead.' : 'Step 3: paste the signature.'}
+            </p>
             <textarea
               value={sig}
               onChange={(e) => setSig(e.target.value.trim())}
@@ -188,6 +252,7 @@ export function ConnectPanel() {
               <button
                 type="button"
                 onClick={() => {
+                  secretRef.current = null
                   setPrompt(null)
                   setSig('')
                   setError(null)

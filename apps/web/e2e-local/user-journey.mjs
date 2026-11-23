@@ -97,7 +97,7 @@ async function persona(browser, name, { mobile = false } = {}) {
 
 // ---------------------------------------------------------------- UI helpers
 /** Sign in as an Agent ID wallet: enter the address, take the login prompt, sign its `baw` command, paste the signature. */
-async function connect(page, address, signer = defaultSigner) {
+async function connect(page, address, signer = defaultSigner, { manual = false } = {}) {
   await page.context().clearCookies() // a previous persona's session must not carry over
   await page.goto(`${APP}/dashboard`)
   await page.getByRole('heading', { level: 1, name: 'Connect to start' }).or(page.getByRole('heading', { name: 'Your Agent ID wallet' })).first().waitFor({ timeout: 20_000 })
@@ -107,9 +107,18 @@ async function connect(page, address, signer = defaultSigner) {
   await pre.waitFor({ timeout: 20_000 })
   const cmd = await pre.innerText()
   const signature = await signer(address, typedDataFromCommand(cmd))
-  await page.getByLabel('Signature', { exact: true }).fill(signature)
-  await page.getByRole('button', { name: 'SIGN IN', exact: true }).click()
-  await page.getByRole('heading', { level: 1, name: 'Dashboard' }).waitFor({ timeout: 20_000 })
+  if (manual) {
+    // Fallback: paste the signature into the page.
+    await page.getByLabel('Signature', { exact: true }).fill(signature)
+    await page.getByRole('button', { name: 'SIGN IN', exact: true }).click()
+  } else {
+    // Default: the agent sends the signature back with the curl in the prompt. The page signs in by itself.
+    const challenge = (await pre.innerText()).match(/"challenge":"([^"]+)"/)?.[1]
+    expect(Boolean(challenge), 'prompt has no challenge')
+    const res = await page.request.post(`${APP}/api/auth/complete`, { data: { challenge, signature } })
+    expect(res.ok(), `complete returned ${res.status()}`)
+  }
+  await page.getByRole('heading', { level: 1, name: 'Dashboard' }).waitFor({ timeout: 30_000 })
   holderOf.set(page, address)
 }
 
@@ -379,7 +388,7 @@ await step('W: cannot attest to own profile', async () => {
 const x = await persona(browser, 'X')
 let attestationTx = ''
 await step('X: connect and sign a peer attestation from the request link', async () => {
-  await connect(x, DEV.x.address)
+  await connect(x, DEV.x.address, defaultSigner, { manual: true })
   await x.goto(requestLink)
   await x.getByText(/Attesting for/).waitFor({ timeout: 15_000 })
   await x.getByLabel('Your relationship to this work').selectOption('reviewer')

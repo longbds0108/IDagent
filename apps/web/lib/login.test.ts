@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { privateKeyToAccount } from 'viem/accounts'
-import { bawLoginCommand, loginPrompt, verifyLogin, type LoginMessage } from './login'
+import { bawLoginCommand, loginPrompt, loginSecretHash, verifyLogin, type LoginMessage } from './login'
 
 const CONTRACT = '0xDaf663BF05701b509067cE2341B11FFbc227C9B9' as const
 const KEY = '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d'
@@ -73,5 +73,18 @@ describe('sign-in by signature', () => {
     const prompt = loginPrompt(cmd)
     expect(prompt).toContain(cmd)
     expect(prompt).toMatch(/only the "signature" value/)
+  })
+
+  it('builds a prompt that also tells the agent where to send the signature', () => {
+    const cmd = bawLoginCommand(msg, CONTRACT)
+    const prompt = loginPrompt(cmd, { url: 'https://www.attested.top/api/auth/complete', challenge: 'abc.def' })
+    expect(prompt).toContain(cmd)
+    expect(prompt).toContain("curl -s -X POST 'https://www.attested.top/api/auth/complete'")
+    expect(prompt).toContain('"challenge":"abc.def"')
+    expect(prompt).toContain('"signature":"SIGNATURE"')
+  })
+
+  it('hashes the browser secret with SHA-256 (the server stores only this hash)', async () => {
+    expect(await loginSecretHash('abc')).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad')
   })
 })

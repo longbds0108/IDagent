@@ -52,13 +52,35 @@ export function bawLoginCommand(m: LoginMessage, verifyingContract: Address): st
   return `baw sign-message preview --binanceChainId ${BSC_CHAIN_ID} --signType EIP712 --message '${msg}' --json`
 }
 
-/** The prompt the user copies to their AI agent. */
-export function loginPrompt(command: string): string {
+/** SHA-256 (hex) of the browser's secret. The server stores only this hash. */
+export async function loginSecretHash(secret: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret))
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+/**
+ * The prompt the user copies to their AI agent. With `complete`, the agent also sends the signature
+ * back to attested, so the open page signs in by itself.
+ */
+export function loginPrompt(command: string, complete?: { url: string; challenge: string }): string {
+  if (!complete) {
+    return [
+      'Please run this command with the Agentic Wallet CLI (baw) and approve in the Binance App if asked.',
+      'Then send me back only the "signature" value from the result.',
+      '',
+      command,
+    ].join('\n')
+  }
   return [
-    'Please run this command with the Agentic Wallet CLI (baw) and approve in the Binance App if asked.',
-    'Then send me back only the "signature" value from the result, and "signatureRecovery" if it is shown.',
+    'Sign this attested login with the Agentic Wallet CLI (baw). Approve in the Binance App if asked.',
     '',
+    'Step 1. Run this command:',
     command,
+    '',
+    'Step 2. Take the "signature" value from the result and send it to attested. Replace SIGNATURE with that value:',
+    `curl -s -X POST '${complete.url}' -H 'content-type: application/json' --data '{"challenge":"${complete.challenge}","signature":"SIGNATURE"}'`,
+    '',
+    'Step 3. Reply with the output of step 2. It should show "ok": true.',
   ].join('\n')
 }
 
