@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { privateKeyToAccount } from 'viem/accounts'
-import { agentLoginPrompt, bawLoginCommand, loginSecretHash, verifyLogin, type LoginMessage } from './login'
+import { agentLoginInstructions, agentLoginPrompt, bawLoginCommand, loginSecretHash, verifyLogin, type LoginMessage } from './login'
 
 const CONTRACT = '0xDaf663BF05701b509067cE2341B11FFbc227C9B9' as const
 const KEY = '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d'
@@ -68,14 +68,22 @@ describe('sign-in by signature', () => {
     expect(await verifyLogin(msg, CONTRACT, `0x${'11'.repeat(64)}`)).toBe(false)
   })
 
-  it('shows the agent the real baw steps and where to send the signature', () => {
-    const prompt = agentLoginPrompt('https://www.attested.top', 'ab'.repeat(32))
-    expect(prompt).toContain('https://www.attested.top/api/auth/challenge')
-    expect(prompt).toContain(`"secretHash":"${'ab'.repeat(32)}"`)
-    expect(prompt).toContain('baw sign-message execute --requestId')
-    expect(prompt).toContain('baw sign-message result --requestId')
-    expect(prompt).toContain('https://www.attested.top/api/auth/complete')
-    expect(prompt).not.toMatch(/0x[0-9a-f]{64}/i) // no private key or signature template
+  it('keeps the prompt short and points the agent to the steps with its hash', () => {
+    const hash = 'ab'.repeat(32)
+    const prompt = agentLoginPrompt('https://www.attested.top', hash)
+    expect(prompt).toContain(`https://www.attested.top/api/auth/instructions?h=${hash}`)
+    expect(prompt.length).toBeLessThan(400)
+    expect(prompt).not.toMatch(/baw /) // the steps live at the URL, not in the prompt
+  })
+
+  it('gives the agent the real baw steps and the endpoints', () => {
+    const hash = 'ab'.repeat(32)
+    const text = agentLoginInstructions('https://www.attested.top', hash)
+    expect(text).toContain(`"secretHash":"${hash}"`)
+    expect(text).toContain('baw sign-message execute --requestId')
+    expect(text).toContain('baw sign-message result --requestId')
+    expect(text).toContain('https://www.attested.top/api/auth/complete')
+    expect(text).not.toMatch(/0x[0-9a-f]{64}/i) // no private key or signature template
   })
 
   it('hashes the browser secret with SHA-256 (the server stores only this hash)', async () => {

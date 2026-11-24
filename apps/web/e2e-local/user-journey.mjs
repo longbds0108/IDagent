@@ -137,9 +137,9 @@ async function connect(page, address, signer = defaultSigner) {
   // previews and signs it with baw, then sends the signature back. The page signs in by itself.
   const pre = page.getByLabel('Agent login prompt')
   await pre.waitFor({ timeout: 20_000 })
-  await page.waitForFunction(() => document.querySelector('[aria-label="Agent login prompt"]')?.textContent?.includes('secretHash'), null, { timeout: 20_000 })
+  await page.waitForFunction(() => document.querySelector('[aria-label="Agent login prompt"]')?.textContent?.includes('instructions?h='), null, { timeout: 20_000 })
   const prompt = await pre.innerText()
-  const secretHash = prompt.match(/"secretHash":"([0-9a-f]{64})"/)?.[1]
+  const secretHash = prompt.match(/instructions\?h=([0-9a-f]{64})/)?.[1]
   expect(Boolean(secretHash), 'prompt has no secret hash')
   const ch = await page.request.post(`${APP}/api/auth/challenge`, { data: { address, secretHash } })
   expect(ch.ok(), `challenge returned ${ch.status()}`)
@@ -304,7 +304,7 @@ await step('Visitor: dashboard offers both sign-in options (browser wallet and A
   await v.getByRole('heading', { name: 'Your Agent ID wallet' }).waitFor()
   expect((await v.getByRole('button', { name: 'CONNECT BROWSER WALLET', exact: true }).count()) === 1, 'browser wallet option missing')
   await v.getByLabel('Agent login prompt').waitFor({ timeout: 20_000 })
-  expect(((await v.getByLabel('Agent login prompt').innerText()).includes('/api/auth/challenge')), 'agent prompt missing')
+  expect(((await v.getByLabel('Agent login prompt').innerText()).includes('/api/auth/instructions')), 'agent prompt missing')
 }, v)
 
 // ---------------------------------------------------------------- non-holder

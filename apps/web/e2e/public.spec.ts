@@ -68,7 +68,7 @@ test.describe('dashboard connection', () => {
     await page.goto('/dashboard')
     await expect(page.getByRole('heading', { name: 'Your Agent ID wallet' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'CONNECT BROWSER WALLET', exact: true })).toBeVisible()
-    await expect(page.getByLabel('Agent login prompt')).toContainText('/api/auth/challenge')
+    await expect(page.getByLabel('Agent login prompt')).toContainText('/api/auth/instructions')
     await expect(page.locator('body')).not.toContainText(/scan (the )?QR|pairing code:/i)
   })
 

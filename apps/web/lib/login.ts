@@ -59,17 +59,25 @@ export async function loginSecretHash(secret: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-/**
- * The prompt shown on the sign-in page, before any address is known. The agent finds its own address,
- * asks attested for a login message, runs the real baw steps (preview, execute, result), and sends the
- * signature back. `secretHash` is the hash of a secret that only this browser keeps.
- */
+/** The short prompt shown on the page. The full steps are at a URL, so the prompt stays short. */
 export function agentLoginPrompt(origin: string, secretHash: string): string {
   return [
-    'Sign me in to attested with my Agentic Wallet. Do these steps in order.',
+    'Sign me in to attested with my Agentic Wallet.',
+    `Open ${origin}/api/auth/instructions?h=${secretHash} and follow the steps there exactly.`,
+    'Reply with the final result.',
+  ].join('\n')
+}
+
+/**
+ * The steps for the agent (served at /api/auth/instructions). The agent finds its own address, asks for the
+ * login message, runs the real baw steps (preview, execute, result), and sends the signature back.
+ */
+export function agentLoginInstructions(origin: string, secretHash: string): string {
+  return [
+    'attested login steps. Do them in order.',
     '',
     '1. Find my wallet address: run `baw wallet address --json` and use the address for the BSC (chain 56) entry.',
-    `2. Ask attested for a login message. Send an HTTPS POST to ${origin}/api/auth/challenge`,
+    `2. Ask attested for a login message: HTTPS POST to ${origin}/api/auth/challenge`,
     `   with the JSON body {"address":"<my address>","secretHash":"${secretHash}"}.`,
     '   The reply has "challenge" and "command". Keep both.',
     '3. Run the "command" from the reply with baw. It prints a requestId.',
