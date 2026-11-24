@@ -129,27 +129,24 @@ async function connectWithBrowserWallet(page, address, key) {
 }
 
 /** Sign in as an Agent ID wallet: enter the address, take the login prompt, sign its `baw` command, paste the signature. */
-async function connect(page, address, signer = defaultSigner, { manual = false } = {}) {
+async function connect(page, address, signer = defaultSigner) {
   await page.context().clearCookies() // a previous persona's session must not carry over
   await page.goto(`${APP}/dashboard`)
   await page.getByRole('heading', { level: 1, name: 'Connect to start' }).or(page.getByRole('heading', { name: 'Your Agent ID wallet' })).first().waitFor({ timeout: 20_000 })
-  await page.getByLabel('Agentic Wallet address').fill(address)
-  await page.getByRole('button', { name: 'GET LOGIN PROMPT', exact: true }).click()
-  const pre = page.locator('pre', { hasText: 'baw sign-message preview' }).first()
+  // The agent prompt is shown at once. The agent reads the secret hash from it, asks for the login message,
+  // previews and signs it with baw, then sends the signature back. The page signs in by itself.
+  const pre = page.getByLabel('Agent login prompt')
   await pre.waitFor({ timeout: 20_000 })
-  const cmd = await pre.innerText()
-  const signature = await signer(address, typedDataFromCommand(cmd))
-  if (manual) {
-    // Fallback: paste the signature into the page.
-    await page.getByLabel('Signature', { exact: true }).fill(signature)
-    await page.getByRole('button', { name: 'SIGN IN', exact: true }).click()
-  } else {
-    // Default: the agent sends the signature back with the curl in the prompt. The page signs in by itself.
-    const challenge = (await pre.innerText()).match(/"challenge":"([^"]+)"/)?.[1]
-    expect(Boolean(challenge), 'prompt has no challenge')
-    const res = await page.request.post(`${APP}/api/auth/complete`, { data: { challenge, signature } })
-    expect(res.ok(), `complete returned ${res.status()}`)
-  }
+  await page.waitForFunction(() => document.querySelector('[aria-label="Agent login prompt"]')?.textContent?.includes('secretHash'), null, { timeout: 20_000 })
+  const prompt = await pre.innerText()
+  const secretHash = prompt.match(/"secretHash":"([0-9a-f]{64})"/)?.[1]
+  expect(Boolean(secretHash), 'prompt has no secret hash')
+  const ch = await page.request.post(`${APP}/api/auth/challenge`, { data: { address, secretHash } })
+  expect(ch.ok(), `challenge returned ${ch.status()}`)
+  const { challenge, command } = await ch.json()
+  const signature = await signer(address, typedDataFromCommand(command))
+  const res = await page.request.post(`${APP}/api/auth/complete`, { data: { challenge, signature } })
+  expect(res.ok(), `complete returned ${res.status()}`)
   await page.getByRole('heading', { level: 1, name: 'Dashboard' }).waitFor({ timeout: 30_000 })
   holderOf.set(page, address)
 }
@@ -306,17 +303,16 @@ await step('Visitor: dashboard offers both sign-in options (browser wallet and A
   await v.goto(`${APP}/dashboard`)
   await v.getByRole('heading', { name: 'Your Agent ID wallet' }).waitFor()
   expect((await v.getByRole('button', { name: 'CONNECT BROWSER WALLET', exact: true }).count()) === 1, 'browser wallet option missing')
-  expect((await v.getByLabel('Agentic Wallet address').count()) === 1, 'AI agent option missing')
+  await v.getByLabel('Agent login prompt').waitFor({ timeout: 20_000 })
+  expect(((await v.getByLabel('Agent login prompt').innerText()).includes('/api/auth/challenge')), 'agent prompt missing')
 }, v)
 
 // ---------------------------------------------------------------- non-holder
 const n = await persona(browser, 'nonHolder')
 await step('Non-holder: connect is refused with a clear message', async () => {
-  await n.goto(`${APP}/dashboard`)
-  await n.getByLabel('Agentic Wallet address').fill(DEV.nonHolder)
-  await n.getByRole('button', { name: 'GET LOGIN PROMPT', exact: true }).click()
-  await n.getByText(/This wallet has no Agent ID/).waitFor({ timeout: 20_000 })
-  expect((await n.getByRole('heading', { level: 1, name: 'Dashboard' }).count()) === 0, 'non-holder got into the dashboard')
+  const r = await n.request.post(`${APP}/api/auth/challenge`, { data: { address: DEV.nonHolder } })
+  expect(r.status() === 403, `expected 403, got ${r.status()}`)
+  expect(/This wallet has no Agent ID/.test(await r.text()), 'no clear refusal message')
 }, n)
 
 // ---------------------------------------------------------------- W: builder
@@ -421,7 +417,7 @@ await step('W: cannot attest to own profile', async () => {
 const x = await persona(browser, 'X')
 let attestationTx = ''
 await step('X: connect and sign a peer attestation from the request link', async () => {
-  await connect(x, DEV.x.address, defaultSigner, { manual: true })
+  await connect(x, DEV.x.address)
   await x.goto(requestLink)
   await x.getByText(/Attesting for/).waitFor({ timeout: 15_000 })
   await x.getByLabel('Your relationship to this work').selectOption('reviewer')
@@ -597,7 +593,7 @@ await step('Verify: builder response, credential status, tx decode, address', as
   await v.getByText(/Holds an Agent ID/).first().waitFor()
   if (attestationTx) {
     await v.goto(`${APP}/verify?q=${attestationTx}`)
-    await v.getByText('AttestationIssued').waitFor()
+    await v.getByText('AttestationIssued').first().waitFor()
   }
 }, v)
 await connect(w, DEV.w.address)

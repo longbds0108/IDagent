@@ -22,7 +22,8 @@ interface LoginStore {
   remove(pid: string): Promise<void>
 }
 
-const PID_RE = /^[0-9a-f]{32}$/
+/** The key is the SHA-256 of the browser's secret (64 hex). It is public, but it cannot open a session alone. */
+const PID_RE = /^[0-9a-f]{64}$/
 
 class FsLogins implements LoginStore {
   constructor(private dir: string) {}
@@ -75,12 +76,11 @@ class PgLogins implements LoginStore {
   async put(row: PendingLogin) {
     const db = await this.db()
     await db.query('delete from pending_logins where expires_at < $1', [Math.floor(Date.now() / 1000)])
-    await db.query('insert into pending_logins (pid, secret_hash, address, expires_at, approved) values ($1, $2, $3, $4, false)', [
-      row.pid,
-      row.secretHash,
-      row.address.toLowerCase(),
-      row.expiresAt,
-    ])
+    await db.query(
+      `insert into pending_logins (pid, secret_hash, address, expires_at, approved) values ($1, $2, $3, $4, false)
+       on conflict (pid) do update set address = excluded.address, expires_at = excluded.expires_at, approved = false`,
+      [row.pid, row.secretHash, row.address.toLowerCase(), row.expiresAt],
+    )
   }
   async get(pid: string) {
     if (!PID_RE.test(pid)) return null

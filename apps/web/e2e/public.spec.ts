@@ -67,14 +67,14 @@ test.describe('dashboard connection', () => {
   test('only one way in: the Agent ID wallet field, no browser wallet option', async ({ page }) => {
     await page.goto('/dashboard')
     await expect(page.getByRole('heading', { name: 'Your Agent ID wallet' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /browser wallet/i })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'CONNECT BROWSER WALLET', exact: true })).toBeVisible()
+    await expect(page.getByLabel('Agent login prompt')).toContainText('/api/auth/challenge')
     await expect(page.locator('body')).not.toContainText(/scan (the )?QR|pairing code:/i)
   })
 
-  test('a wallet without Agent ID cannot connect', async ({ page }) => {
-    await page.goto('/dashboard')
-    await page.getByLabel('Agentic Wallet address').fill('0x000000000000000000000000000000000000dEaD')
-    await page.getByRole('button', { name: 'GET LOGIN PROMPT', exact: true }).click()
-    await expect(page.getByText(/This wallet has no Agent ID/)).toBeVisible({ timeout: 20_000 })
+  test('a wallet without Agent ID cannot connect', async ({ request }) => {
+    const res = await request.post('/api/auth/challenge', { data: { address: '0x000000000000000000000000000000000000dEaD' } })
+    expect(res.status()).toBe(403)
+    expect(await res.text()).toMatch(/This wallet has no Agent ID/)
   })
 })

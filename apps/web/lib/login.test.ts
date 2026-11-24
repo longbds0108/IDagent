@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { privateKeyToAccount } from 'viem/accounts'
-import { bawLoginCommand, loginPrompt, loginSecretHash, verifyLogin, type LoginMessage } from './login'
+import { agentLoginPrompt, bawLoginCommand, loginSecretHash, verifyLogin, type LoginMessage } from './login'
 
 const CONTRACT = '0xDaf663BF05701b509067cE2341B11FFbc227C9B9' as const
 const KEY = '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d'
@@ -68,20 +68,14 @@ describe('sign-in by signature', () => {
     expect(await verifyLogin(msg, CONTRACT, `0x${'11'.repeat(64)}`)).toBe(false)
   })
 
-  it('wraps the command in a prompt the user can paste into an agent', () => {
-    const cmd = bawLoginCommand(msg, CONTRACT)
-    const prompt = loginPrompt(cmd)
-    expect(prompt).toContain(cmd)
-    expect(prompt).toMatch(/only the "signature" value/)
-  })
-
-  it('builds a prompt that also tells the agent where to send the signature', () => {
-    const cmd = bawLoginCommand(msg, CONTRACT)
-    const prompt = loginPrompt(cmd, { url: 'https://www.attested.top/api/auth/complete', challenge: 'abc.def' })
-    expect(prompt).toContain(cmd)
-    expect(prompt).toContain("curl -s -X POST 'https://www.attested.top/api/auth/complete'")
-    expect(prompt).toContain('"challenge":"abc.def"')
-    expect(prompt).toContain('"signature":"SIGNATURE"')
+  it('shows the agent the real baw steps and where to send the signature', () => {
+    const prompt = agentLoginPrompt('https://www.attested.top', 'ab'.repeat(32))
+    expect(prompt).toContain('https://www.attested.top/api/auth/challenge')
+    expect(prompt).toContain(`"secretHash":"${'ab'.repeat(32)}"`)
+    expect(prompt).toContain('baw sign-message execute --requestId')
+    expect(prompt).toContain('baw sign-message result --requestId')
+    expect(prompt).toContain('https://www.attested.top/api/auth/complete')
+    expect(prompt).not.toMatch(/0x[0-9a-f]{64}/i) // no private key or signature template
   })
 
   it('hashes the browser secret with SHA-256 (the server stores only this hash)', async () => {
