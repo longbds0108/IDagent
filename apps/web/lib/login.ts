@@ -28,7 +28,8 @@ export function loginDomain(verifyingContract: Address) {
   return { name: 'attested Login', version: '1', chainId: BSC_CHAIN_ID, verifyingContract } as const
 }
 
-function typedData(m: LoginMessage, verifyingContract: Address) {
+/** The EIP-712 data the wallet signs. Exported so a browser wallet can sign it directly. */
+export function loginTypedData(m: LoginMessage, verifyingContract: Address) {
   return {
     types: {
       EIP712Domain: [
@@ -47,7 +48,7 @@ function typedData(m: LoginMessage, verifyingContract: Address) {
 
 /** The `baw` command the agent runs. Single quotes are escaped for the shell. */
 export function bawLoginCommand(m: LoginMessage, verifyingContract: Address): string {
-  const req = { method: 'eth_signTypedData_v4', params: [m.address, JSON.stringify(typedData(m, verifyingContract))] }
+  const req = { method: 'eth_signTypedData_v4', params: [m.address, JSON.stringify(loginTypedData(m, verifyingContract))] }
   const msg = JSON.stringify(req).replace(/'/g, "'\\''")
   return `baw sign-message preview --binanceChainId ${BSC_CHAIN_ID} --signType EIP712 --message '${msg}' --json`
 }

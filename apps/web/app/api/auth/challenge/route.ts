@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { getAddress, isAddress } from 'viem'
 import { json, errorResponse } from '@/lib/http'
-import { bawLoginCommand, loginPrompt, LOGIN_TTL_S, type LoginMessage } from '@/lib/login'
+import { bawLoginCommand, loginPrompt, loginTypedData, LOGIN_TTL_S, type LoginMessage } from '@/lib/login'
 import { loginStore } from '@/lib/login-store'
 import { clientKey, rateLimit } from '@/lib/rate-limit'
 import { isAgentIdHolder, contracts } from '@/lib/reads'
@@ -30,7 +30,8 @@ export async function POST(req: Request) {
     const challenge = signToken({ kind: 'login-challenge', ...message, pid })
     const origin = new URL(req.url).origin
     const prompt = loginPrompt(command, pid ? { url: `${origin}/api/auth/complete`, challenge } : undefined)
-    return json({ challenge, prompt, command, expiresAt: message.expiresAt, pid })
+    const typedData = loginTypedData(message, contracts().profileRegistry)
+    return json({ challenge, prompt, command, typedData, expiresAt: message.expiresAt, pid })
   } catch (e) {
     return errorResponse(e)
   }
