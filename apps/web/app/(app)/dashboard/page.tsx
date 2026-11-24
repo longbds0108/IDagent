@@ -23,9 +23,9 @@ export default function DashboardHome() {
     return (
       <Card>
         <CardHeader
-          title="Create your builder profile"
+          title="Create your profile"
           index="01"
-          description="Profile text is stored off-chain. Its hash goes on-chain."
+          description="Takes about a minute. Once published, your profile is public."
         />
         <CardBody>
           <ProfileForm />

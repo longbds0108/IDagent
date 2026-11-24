@@ -188,15 +188,14 @@ export function ActionRunner({
             <dd>{phase.fee ? `≈ ${Number(phase.fee).toFixed(6)} BNB` : '—'}</dd>
           </dl>
           <ol className="list-decimal space-y-1 pl-5 text-ink-2">
-            <li>Turn on Developer Mode in the Binance App (Agentic Wallet → Settings).</li>
-            <li>Ask your AI agent to run this preview and show you the result.</li>
-            <li>If it looks right, the agent runs <code className="font-mono">execute</code>. Approve in the Binance App if asked.</li>
-            {detectRef.current ? (
-              <li>Wait here. This page updates by itself once the change is on-chain.</li>
-            ) : (
-              <li>Paste the transaction hash below.</li>
-            )}
+            <li>Copy the command below.</li>
+            <li>Paste it to your AI agent and approve in the Binance App.</li>
+            {detectRef.current ? <li>This page updates by itself when it is done.</li> : <li>Paste the transaction hash below.</li>}
           </ol>
+          <p className="text-[12.5px] text-ink-3">Needs Developer Mode: Agentic Wallet → Settings in the Binance App.</p>
+          <Button size="sm" variant="secondary" onClick={() => void navigator.clipboard.writeText(phase.preview).catch(() => {})}>
+            Copy command
+          </Button>
           <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all border border-line bg-bg p-3 font-mono text-[11.5px] text-ink-2">
             {phase.preview}
           </pre>
