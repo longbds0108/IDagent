@@ -96,38 +96,6 @@ async function persona(browser, name, { mobile = false } = {}) {
 }
 
 // ---------------------------------------------------------------- UI helpers
-/**
- * Sign in with a browser wallet (extension or dApp browser). The page gets a stub window.ethereum that signs
- * with the holder's key, the same way a real wallet would sign the EIP-712 login message.
- */
-async function connectWithBrowserWallet(page, address, key) {
-  await page.context().clearCookies()
-  await page.exposeFunction('__signLogin', async (json) => {
-    const td = JSON.parse(json)
-    const { EIP712Domain: _domain, ...types } = td.types
-    return privateKeyToAccount(key).signTypedData({
-      domain: td.domain,
-      types,
-      primaryType: td.primaryType,
-      message: { ...td.message, nonce: BigInt(td.message.nonce), issuedAt: BigInt(td.message.issuedAt), expiresAt: BigInt(td.message.expiresAt) },
-    })
-  })
-  await page.addInitScript((addr) => {
-    window.ethereum = {
-      request: async ({ method, params }) => {
-        if (method === 'eth_requestAccounts' || method === 'eth_accounts') return [addr]
-        if (method === 'eth_chainId') return '0x38'
-        if (method === 'eth_signTypedData_v4') return window.__signLogin(params[1])
-        throw Object.assign(new Error(`unsupported ${method}`), { code: 4200 })
-      },
-    }
-  }, address)
-  await page.goto(`${APP}/dashboard`)
-  await page.getByRole('button', { name: 'CONNECT BROWSER WALLET', exact: true }).click()
-  await page.getByRole('heading', { level: 1, name: 'Dashboard' }).waitFor({ timeout: 30_000 })
-  holderOf.set(page, address)
-}
-
 /** Sign in as an Agent ID wallet: enter the address, take the login prompt, sign its `baw` command, paste the signature. */
 async function connect(page, address, signer = defaultSigner) {
   await page.context().clearCookies() // a previous persona's session must not carry over
@@ -299,10 +267,9 @@ await step('Visitor: verify handles junk, unknown tx and unknown records', async
   await v.goto(`${APP}/p/nobody.ai`)
   await v.getByText('Profile not found').waitFor()
 }, v)
-await step('Visitor: dashboard offers both sign-in options (browser wallet and AI agent)', async () => {
+await step('Visitor: dashboard shows the agent sign-in prompt', async () => {
   await v.goto(`${APP}/dashboard`)
   await v.getByRole('heading', { name: 'Your Agent ID wallet' }).waitFor()
-  expect((await v.getByRole('button', { name: 'CONNECT BROWSER WALLET', exact: true }).count()) === 1, 'browser wallet option missing')
   await v.getByLabel('Agent login prompt').waitFor({ timeout: 20_000 })
   expect(((await v.getByLabel('Agent login prompt').innerText()).includes('/api/auth/challenge')), 'agent prompt missing')
 }, v)
@@ -317,8 +284,8 @@ await step('Non-holder: connect is refused with a clear message', async () => {
 
 // ---------------------------------------------------------------- W: builder
 const w = await persona(browser, 'W')
-await step('W: connect with a browser wallet (signs the login message)', async () => {
-  await connectWithBrowserWallet(w, DEV.w.address, DEV.w.key)
+await step('W: connect Agent ID wallet (agent signs the prompt)', async () => {
+  await connect(w, DEV.w.address)
   await w.getByText('AGENT ID', { exact: true }).first().waitFor({ timeout: 15_000 })
 }, w)
 await step('W: bio with an e-mail is blocked', async () => {

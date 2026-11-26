@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { isAddress } from 'viem'
 import { useIdentity } from './identity'
 import { agentLoginPrompt, loginSecretHash } from '@/lib/login'
 import { shortAddress } from '@/lib/utils'
@@ -42,22 +41,6 @@ export function IdentityChip() {
 
 const POLL_MS = 2_000
 const ROTATE_MS = 10 * 60_000 // a waiting prompt gets a fresh secret after 10 minutes
-const BSC_CHAIN_HEX = '0x38'
-
-interface InjectedWallet {
-  request(args: { method: string; params?: unknown[] }): Promise<unknown>
-}
-
-function injectedWallet(): InjectedWallet | null {
-  return (globalThis as unknown as { ethereum?: InjectedWallet }).ethereum ?? null
-}
-
-function walletErrorText(e: unknown): string {
-  const err = e as { code?: number; message?: string }
-  if (err.code === 4001) return 'You cancelled the request in your wallet.'
-  return err.message || 'Sign-in failed. Try again.'
-}
-
 function randomSecret() {
   const bytes = crypto.getRandomValues(new Uint8Array(32))
   return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('')
@@ -190,52 +173,6 @@ export function ConnectPanel() {
     }
   }, [pending, qc])
 
-  /**
-   * Connect a browser wallet (extension or the Binance App's dApp browser). The wallet signs the login
-   * message directly, and the server check opens the session.
-   */
-  async function connectBrowserWallet() {
-    const eth = injectedWallet()
-    if (!eth) {
-      return setError('No wallet detected. Open this page in the Binance App or install a wallet extension, then reload.')
-    }
-    setBusy(true)
-    setError(null)
-    try {
-      const accounts = (await eth.request({ method: 'eth_requestAccounts' })) as string[] | undefined
-      const addr = accounts?.[0]
-      if (!addr || !isAddress(addr)) return setError('The wallet did not share an address.')
-      const chain = (await eth.request({ method: 'eth_chainId' })) as string
-      if (parseInt(chain, 16) !== 56) {
-        try {
-          await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: BSC_CHAIN_HEX }] })
-        } catch {
-          return setError('Switch your wallet to BNB Smart Chain (56), then try again.')
-        }
-      }
-      const c = await fetch('/api/auth/challenge', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ address: addr }),
-      })
-      const cj = await c.json().catch(() => ({}))
-      if (!c.ok) return setError(cj.error ?? 'Could not check this wallet. Try again.')
-      const signature = (await eth.request({ method: 'eth_signTypedData_v4', params: [addr, JSON.stringify(cj.typedData)] })) as string
-      const v = await fetch('/api/auth/verify', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ challenge: cj.challenge, signature }),
-      })
-      const vj = await v.json().catch(() => ({}))
-      if (!v.ok) return setError(vj.error ?? 'Sign-in failed. Try again.')
-      await qc.invalidateQueries({ queryKey: ['session'] })
-    } catch (e) {
-      setError(walletErrorText(e))
-    } finally {
-      setBusy(false)
-    }
-  }
-
   async function copyPrompt() {
     if (!pending) return
     try {
@@ -251,24 +188,11 @@ export function ConnectPanel() {
     <section className="sp-panel mx-auto max-w-2xl p-6 sm:p-8">
       <p className="sp-label">CONNECT</p>
       <h2 className="sp-display mt-4 text-[clamp(2rem,4vw,3rem)]">Your Agent ID wallet</h2>
-      <p className="mt-4 text-[15px] leading-relaxed text-ink-2">Choose one way to sign in. Both need a wallet with an Agent ID.</p>
+      <p className="mt-4 text-[15px] leading-relaxed text-ink-2">Sign in with your AI agent. Your wallet needs an Agent ID.</p>
 
       {error ? <p className="mt-4 text-[13px] text-bad">{error}</p> : null}
 
-      <div className="mt-6 space-y-2">
-        <button type="button" onClick={connectBrowserWallet} disabled={busy} className="sp-action w-full disabled:opacity-40">
-          <span>{busy ? 'CONNECTING…' : 'CONNECT BROWSER WALLET'}</span>
-          <span className="sp-action__icon" aria-hidden>
-            ↗
-          </span>
-        </button>
-        <p className="text-[12px] leading-relaxed text-ink-3">
-          Use a wallet extension or the Binance App&apos;s built-in dApp browser. Your wallet asks you to sign a login message. Nothing is sent on-chain.
-        </p>
-      </div>
-
-      <p className="mt-8 font-mono text-[11px] uppercase tracking-[0.05em] text-ink-3">Or use your AI agent</p>
-      <p className="mt-3 text-[14px] leading-relaxed text-ink-2">
+      <p className="mt-6 text-[14px] leading-relaxed text-ink-2">
         Copy this prompt and paste it to your AI agent (Binance AI Pro, or any agent with the <code className="font-mono text-peer">baw</code> CLI
         and an Agentic Wallet). It finds your address and signs. This page signs you in when it is done.
       </p>
