@@ -64,6 +64,7 @@ export function ActionRunner({
   const toast = useToast()
   const [phase, setPhase] = useState<Phase>({ k: 'idle' })
   const [pasted, setPasted] = useState('')
+  const [copiedCmd, setCopiedCmd] = useState(false)
   const contracts = deployedContracts()
   const detectRef = useRef(detect)
   detectRef.current = detect
@@ -96,6 +97,25 @@ export function ActionRunner({
 
   const busy = phase.k === 'preparing' || phase.k === 'pending'
   const name = label ?? 'Continue'
+
+  /** Copy the command. If the phone blocks the clipboard, select the text so the user can copy it by hand. */
+  async function copyCommand(text: string) {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedCmd(true)
+      setTimeout(() => setCopiedCmd(false), 2000)
+    } catch {
+      const el = document.getElementById('attested-command')
+      if (el && typeof window !== 'undefined') {
+        const range = document.createRange()
+        range.selectNodeContents(el)
+        const sel = window.getSelection()
+        sel?.removeAllRanges()
+        sel?.addRange(range)
+      }
+      toast({ tone: 'info', text: 'Press and hold the command, then choose Copy.' })
+    }
+  }
 
   async function start() {
     finishedRef.current = false
@@ -190,13 +210,20 @@ export function ActionRunner({
           <ol className="list-decimal space-y-1 pl-5 text-ink-2">
             <li>Copy the command below.</li>
             <li>Paste it to your AI agent and approve in the Binance App.</li>
-            {detectRef.current ? <li>This page updates by itself when it is done.</li> : <li>Paste the transaction hash below.</li>}
+            {detectRef.current ? (
+              <li>This page updates by itself when it is done.</li>
+            ) : (
+              <li>Copy the transaction hash the agent shows after execute, then paste it below.</li>
+            )}
           </ol>
           <p className="text-[12.5px] text-ink-3">Needs Developer Mode: Agentic Wallet → Settings in the Binance App.</p>
-          <Button size="sm" variant="secondary" onClick={() => void navigator.clipboard.writeText(phase.preview).catch(() => {})}>
-            Copy command
+          <Button size="sm" variant="secondary" onClick={() => copyCommand(phase.preview)}>
+            {copiedCmd ? 'Copied ✓' : 'Copy command'}
           </Button>
-          <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all border border-line bg-bg p-3 font-mono text-[11.5px] text-ink-2">
+          <pre
+            id="attested-command"
+            className="max-h-40 overflow-auto whitespace-pre-wrap break-all border border-line bg-bg p-3 font-mono text-[11.5px] text-ink-2"
+          >
             {phase.preview}
           </pre>
           {detectRef.current ? <p className="text-[12.5px] text-ink-3">Already sent it? Paste the transaction hash to check it now.</p> : null}
@@ -204,10 +231,15 @@ export function ActionRunner({
             <Input
               value={pasted}
               onChange={(e) => setPasted(e.target.value)}
-              placeholder="0x… transaction hash"
+              placeholder="0x… transaction hash (66 characters)"
               className="min-w-0 flex-1 font-mono"
               aria-label="Transaction hash"
             />
+            {pasted.trim() && !(isHex(pasted.trim()) && pasted.trim().length === 66) ? (
+              <p className="w-full text-[12.5px] text-bad">
+                Not a transaction hash. It must start with 0x and have 66 characters.
+              </p>
+            ) : null}
             <Button
               disabled={!(isHex(pasted.trim()) && pasted.trim().length === 66)}
               onClick={() => track(pasted.trim() as Hex, { to: phase.to, data: phase.data })}
