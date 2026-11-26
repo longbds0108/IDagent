@@ -459,7 +459,7 @@ await step('A: a transaction that is not the prepared one is rejected', async ()
   const wrong = await wallet.sendTransaction({ account: A.address, to: DEV.admin.address, value: 1n, chain })
   await a.getByLabel('Transaction hash').fill(wrong)
   await a.getByRole('button', { name: 'Track' }).click()
-  await a.getByText(/not the one we prepared/).waitFor({ timeout: 20_000 })
+  await a.getByText(/different transaction/).waitFor({ timeout: 20_000 })
 }, a)
 await step('A: attest to W’s project', async () => {
   await a.goto(requestLink)

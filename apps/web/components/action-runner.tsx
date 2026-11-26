@@ -65,10 +65,20 @@ export function ActionRunner({
   const [phase, setPhase] = useState<Phase>({ k: 'idle' })
   const [pasted, setPasted] = useState('')
   const [copiedCmd, setCopiedCmd] = useState(false)
+  const [trackBusy, setTrackBusy] = useState(false)
+  const [trackError, setTrackError] = useState<string | null>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
   const contracts = deployedContracts()
   const detectRef = useRef(detect)
   detectRef.current = detect
   const finishedRef = useRef(false)
+
+  // On a phone the user is at the bottom of the box. Bring the result into view.
+  useEffect(() => {
+    if (phase.k === 'confirmed' || phase.k === 'detected' || phase.k === 'reverted' || phase.k === 'error') {
+      rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [phase.k])
 
   // Watch the chain while the agent works, so the user does not have to paste anything.
   useEffect(() => {
@@ -98,23 +108,50 @@ export function ActionRunner({
   const busy = phase.k === 'preparing' || phase.k === 'pending'
   const name = label ?? 'Continue'
 
-  /** Copy the command. If the phone blocks the clipboard, select the text so the user can copy it by hand. */
+  /** Copy text. Tries the Clipboard API, then the older copy command, which in-app browsers still allow. */
+  function copyText(text: string): boolean {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.setAttribute('readonly', '')
+    ta.style.position = 'fixed'
+    ta.style.top = '0'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    ta.setSelectionRange(0, text.length)
+    let ok = false
+    try {
+      ok = document.execCommand('copy')
+    } catch {
+      ok = false
+    }
+    document.body.removeChild(ta)
+    return ok
+  }
+
   async function copyCommand(text: string) {
+    let ok = false
     try {
       await navigator.clipboard.writeText(text)
+      ok = true
+    } catch {
+      ok = copyText(text)
+    }
+    if (ok) {
       setCopiedCmd(true)
       setTimeout(() => setCopiedCmd(false), 2000)
-    } catch {
-      const el = document.getElementById('attested-command')
-      if (el && typeof window !== 'undefined') {
-        const range = document.createRange()
-        range.selectNodeContents(el)
-        const sel = window.getSelection()
-        sel?.removeAllRanges()
-        sel?.addRange(range)
-      }
-      toast({ tone: 'info', text: 'Press and hold the command, then choose Copy.' })
+      return
     }
+    // Last resort: select the command so the user can long-press and copy it.
+    const el = document.getElementById('attested-command')
+    if (el) {
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      const sel = window.getSelection()
+      sel?.removeAllRanges()
+      sel?.addRange(range)
+    }
+    toast({ tone: 'info', text: 'Press and hold the command, then choose Copy.' })
   }
 
   async function start() {
@@ -160,18 +197,26 @@ export function ActionRunner({
     onConfirmed?.(hash)
   }
 
+  /** Check a transaction hash the user pasted. Errors stay next to the field, so the box stays on screen. */
   async function track(hash: Hex, expect: { to: string; data: Hex }) {
     finishedRef.current = false
-    setPhase({ k: 'pending', hash })
+    setTrackError(null)
+    setTrackBusy(true)
     try {
-      // Only accept the transaction we prepared, sent from this wallet.
-      const tx = await publicClient.getTransaction({ hash })
+      let tx
+      try {
+        tx = await publicClient.getTransaction({ hash })
+      } catch {
+        setTrackError('BNB Chain has not seen this transaction yet. Wait a minute, then press Track again.')
+        return
+      }
       if (
         tx.to?.toLowerCase() !== expect.to.toLowerCase() ||
         tx.from.toLowerCase() !== address?.toLowerCase() ||
         tx.input.toLowerCase() !== expect.data.toLowerCase()
       ) {
-        return setPhase({ k: 'error', message: 'This transaction is not the one we prepared.' })
+        setTrackError('This is a different transaction. Paste the hash of the execute transaction for this action.')
+        return
       }
       const r = await publicClient.waitForTransactionReceipt({ hash, timeout: 180_000 })
       if (r.status === 'success') {
@@ -181,12 +226,14 @@ export function ActionRunner({
         toast({ tone: 'bad', text: `${name} failed. Nothing changed.`, href: explorerTxUrl(hash, publicEnv.explorerUrl), linkLabel: 'View tx' })
       }
     } catch (e) {
-      setPhase({ k: 'error', message: `Not confirmed yet: ${explainError(e)}` })
+      setTrackError(`Not confirmed yet: ${explainError(e)}`)
+    } finally {
+      setTrackBusy(false)
     }
   }
 
   return (
-    <div className="space-y-3">
+    <div ref={rootRef} className="space-y-3">
       {phase.k === 'idle' || phase.k === 'error' || phase.k === 'preparing' ? (
         <div className="flex flex-wrap items-center gap-3">
           <Button variant={variant} size={compact ? 'sm' : 'md'} disabled={disabled || busy || !account?.agentIdHeld} onClick={start}>
@@ -230,7 +277,10 @@ export function ActionRunner({
           <div className="flex flex-wrap gap-2">
             <Input
               value={pasted}
-              onChange={(e) => setPasted(e.target.value)}
+              onChange={(e) => {
+                setPasted(e.target.value)
+                setTrackError(null)
+              }}
               placeholder="0x… transaction hash (66 characters)"
               className="min-w-0 flex-1 font-mono"
               aria-label="Transaction hash"
@@ -241,11 +291,12 @@ export function ActionRunner({
               </p>
             ) : null}
             <Button
-              disabled={!(isHex(pasted.trim()) && pasted.trim().length === 66)}
+              disabled={trackBusy || !(isHex(pasted.trim()) && pasted.trim().length === 66)}
               onClick={() => track(pasted.trim() as Hex, { to: phase.to, data: phase.data })}
             >
-              Track
+              {trackBusy ? 'Checking…' : 'Track'}
             </Button>
+            {trackError ? <p className="w-full text-[12.5px] text-bad">{trackError}</p> : null}
             <Button variant="ghost" onClick={() => setPhase({ k: 'idle' })}>
               Cancel
             </Button>
