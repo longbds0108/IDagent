@@ -59,36 +59,22 @@ export async function loginSecretHash(secret: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-/** The short prompt shown on the page. The full steps are at a URL, so the prompt stays short. */
+/**
+ * The prompt shown on the sign-in page. It carries every step inline: an agent that cannot open links
+ * can still sign in. The agent finds its own address, asks for the login message, runs the real baw steps
+ * (preview, execute, result), and sends the signature back. `secretHash` is the hash of a secret only this
+ * browser keeps.
+ */
 export function agentLoginPrompt(origin: string, secretHash: string): string {
   return [
-    'Sign me in to attested with my Agentic Wallet.',
-    `Open ${origin}/api/auth/instructions?h=${secretHash} and follow the steps there exactly.`,
-    'Reply with the final result.',
-  ].join('\n')
-}
-
-/**
- * The steps for the agent (served at /api/auth/instructions). The agent finds its own address, asks for the
- * login message, runs the real baw steps (preview, execute, result), and sends the signature back.
- */
-export function agentLoginInstructions(origin: string, secretHash: string): string {
-  return [
-    'attested login steps. Do them in order.',
-    '',
-    '1. Find my wallet address: run `baw wallet address --json` and use the address for the BSC (chain 56) entry.',
-    `2. Ask attested for a login message: HTTPS POST to ${origin}/api/auth/challenge`,
-    `   with the JSON body {"address":"<my address>","secretHash":"${secretHash}"}.`,
-    '   The reply has "challenge" and "command". Keep both.',
-    '3. Run the "command" from the reply with baw. It prints a requestId.',
-    '4. Run `baw sign-message execute --requestId <requestId> --json` and approve in the Binance App if asked.',
-    '5. Run `baw sign-message result --requestId <requestId> --json` and take the "signature" value.',
-    `6. Send the signature back: HTTPS POST to ${origin}/api/auth/complete`,
-    '   with the JSON body {"challenge":"<challenge from step 2>","signature":"<signature from step 5>"}.',
-    '   A reply with "ok": true means attested will sign me in.',
-    '',
-    'Rules: never ask me for keys, codes or seed phrases. If a baw step says Developer Mode is off, tell me',
-    'to turn it on in the Binance App (Agentic Wallet > Settings) and stop. Reply with the result of step 6.',
+    'Sign me in to attested with my Agentic Wallet. Do these steps in order:',
+    '1. Run `baw wallet address --json` and take the BSC (56) address.',
+    `2. POST ${origin}/api/auth/challenge with JSON {"address":"<address>","secretHash":"${secretHash}"}. Keep "challenge" and "command" from the reply.`,
+    '3. Run that "command" with baw. It prints a requestId.',
+    '4. Run `baw sign-message execute --requestId <requestId> --json` and approve in the Binance App.',
+    '5. Run `baw sign-message result --requestId <requestId> --json` and take "signature".',
+    `6. POST ${origin}/api/auth/complete with JSON {"challenge":"<challenge>","signature":"<signature>"}.`,
+    'Never ask me for keys or seed phrases. If Developer Mode is off, tell me to enable it in the Binance App (Agentic Wallet > Settings) and stop. Reply with the result of step 6.',
   ].join('\n')
 }
 
