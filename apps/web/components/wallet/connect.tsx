@@ -69,11 +69,45 @@ interface PendingPrompt {
   createdAt: number
 }
 
+const STORE_KEY = 'attested.loginSecret'
+
+/**
+ * The secret is kept in sessionStorage. Mobile browsers often reload the page when the user switches to
+ * the Binance App and back. Without this, the reloaded page would wait for a secret the agent never used.
+ */
+function remember(p: PendingPrompt) {
+  try {
+    sessionStorage.setItem(STORE_KEY, JSON.stringify({ secret: p.secret, createdAt: p.createdAt }))
+  } catch {
+    // Private mode: the login still works, it just cannot survive a reload.
+  }
+}
+function forget() {
+  try {
+    sessionStorage.removeItem(STORE_KEY)
+  } catch {
+    // ignore
+  }
+}
+function recall(): { secret: string; createdAt: number } | null {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(STORE_KEY) ?? 'null')
+    return v && typeof v.secret === 'string' && typeof v.createdAt === 'number' ? v : null
+  } catch {
+    return null
+  }
+}
+
+async function promptFor(secret: string, createdAt: number): Promise<PendingPrompt> {
+  const secretHash = await loginSecretHash(secret)
+  return { secret, promptText: agentLoginPrompt(window.location.origin, secretHash), createdAt }
+}
+
 /** A new secret and the prompt that carries its hash. The secret stays in this browser. */
 async function newPrompt(): Promise<PendingPrompt> {
-  const secret = randomSecret()
-  const secretHash = await loginSecretHash(secret)
-  return { secret, promptText: agentLoginPrompt(window.location.origin, secretHash), createdAt: Date.now() }
+  const p = await promptFor(randomSecret(), Date.now())
+  remember(p)
+  return p
 }
 
 /**
@@ -87,10 +121,12 @@ export function ConnectPanel() {
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // One prompt per page visit (and a fresh one after expiry or 10 idle minutes).
+  // One prompt per tab, kept across reloads. A new one after expiry or 10 idle minutes.
   useEffect(() => {
     let cancelled = false
-    void newPrompt().then((p) => {
+    const saved = recall()
+    const start = saved && Date.now() - saved.createdAt < ROTATE_MS ? promptFor(saved.secret, saved.createdAt) : newPrompt()
+    void start.then((p) => {
       if (!cancelled) setPending(p)
     })
     return () => {
@@ -98,36 +134,59 @@ export function ConnectPanel() {
     }
   }, [])
 
-  // Ask the server whether the agent has signed this prompt. Stop when the session opens.
+  // Ask the server whether the agent has signed this prompt. Check at once, every few seconds, and again
+  // whenever the tab comes back to the front (mobile browsers pause timers in the background).
   useEffect(() => {
     if (!pending) return
     let stopped = false
-    const timer = setInterval(async () => {
-      const r = await fetch('/api/auth/status', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ secret: pending.secret }),
-      })
-        .then((x) => x.json())
-        .catch(() => null)
-      if (stopped || !r) return
-      if (r.status === 'signed-in') {
-        clearInterval(timer)
-        await qc.invalidateQueries({ queryKey: ['session'] })
-      } else if (r.status === 'expired') {
-        clearInterval(timer)
-        setError('That login expired. A new prompt is ready. Copy it again.')
-        void newPrompt().then((p) => !stopped && setPending(p))
-      } else if (r.status === 'waiting' && Date.now() - pending.createdAt > ROTATE_MS) {
-        clearInterval(timer)
-        void newPrompt().then((p) => !stopped && setPending(p))
-      } else if (r.error) {
-        setError(r.error)
-      }
-    }, POLL_MS)
-    return () => {
+    let busy = false
+    let timer: ReturnType<typeof setInterval> | undefined
+    const stop = () => {
       stopped = true
-      clearInterval(timer)
+      if (timer) clearInterval(timer)
+    }
+    async function tick() {
+      if (stopped || busy) return
+      busy = true
+      try {
+        const r = await fetch('/api/auth/status', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ secret: pending!.secret }),
+        })
+          .then((x) => x.json())
+          .catch(() => null)
+        if (stopped || !r) return
+        if (r.status === 'signed-in') {
+          stop()
+          forget()
+          await qc.invalidateQueries({ queryKey: ['session'] })
+        } else if (r.status === 'expired') {
+          stop()
+          forget()
+          setError('That login expired. A new prompt is ready. Copy it again.')
+          void newPrompt().then((p) => !stopped && setPending(p))
+        } else if (r.status === 'waiting' && Date.now() - pending!.createdAt > ROTATE_MS) {
+          stop()
+          void newPrompt().then((p) => !stopped && setPending(p))
+        } else if (r.error) {
+          setError(r.error)
+        }
+      } finally {
+        busy = false
+      }
+    }
+    const wake = () => {
+      if (document.visibilityState === 'visible') void tick()
+    }
+    timer = setInterval(tick, POLL_MS)
+    void tick()
+    document.addEventListener('visibilitychange', wake)
+    window.addEventListener('focus', wake)
+    return () => {
+      stop()
+      document.removeEventListener('visibilitychange', wake)
+      window.removeEventListener('focus', wake)
     }
   }, [pending, qc])
 

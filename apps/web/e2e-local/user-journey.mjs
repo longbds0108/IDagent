@@ -537,7 +537,7 @@ await step('Public profile: trust sections, accepted tag, declined hidden', asyn
   await v.goto(`${APP}/p/qathree.ai`)
   await v.getByRole('heading', { level: 1, name: 'QA Builder W' }).waitFor({ timeout: 15_000 })
   await v.getByText('Acknowledged by builder').first().waitFor()
-  await v.getByText(/declined by the builder/).waitFor()
+  await v.getByText(/declined by the builder/).first().waitFor()
   if (await v.locator('li', { hasText: `${A.label}.ai` }).count()) throw new Error('declined attestation still listed')
   await v.getByRole('heading', { name: 'Winner, QA Hackathon' }).waitFor()
   await v.getByRole('heading', { name: 'Temporary badge' }).waitFor()
@@ -562,7 +562,7 @@ await step('Reputation: opted-in builder listed; declined excluded', async () =>
   const breakdownHref = await v.getByRole('link', { name: /Breakdown/ }).first().getAttribute('href')
   expect(breakdownHref?.startsWith('/reputation?profile='), 'breakdown link has the wrong target')
   await v.goto(`${APP}${breakdownHref}`)
-  await v.getByText(/declined by the builder/).waitFor({ timeout: 15_000 })
+  await v.getByText(/declined by the builder/).first().waitFor({ timeout: 15_000 })
 }, v)
 await step('Activity: filters by type, action and query', async () => {
   await v.goto(`${APP}/activity`)
